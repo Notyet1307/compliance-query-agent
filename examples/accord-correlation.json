@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "cqa.query/v1",
+  "requestId": "correlation-demo-001",
+  "question": "演示材料中的资产清单需要记录什么？",
+  "topic": "mlps",
+  "asOfDate": "2026-09-10",
+  "jurisdiction": "CN",
+  "industry": "telecom",
+  "caseId": "case-demo-001",
+  "invocationId": "invocation-demo-001",
+  "contextDigest": "0000000000000000000000000000000000000000000000000000000000000000"
+}

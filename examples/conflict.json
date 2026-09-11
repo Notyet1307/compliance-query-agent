@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "cqa.query/v1",
+  "requestId": "demo-conflict-001",
+  "question": "请查询重叠版本测试",
+  "topic": "mlps",
+  "asOfDate": "2026-09-10",
+  "jurisdiction": "CN",
+  "industry": "telecom"
+}

@@ -1,0 +1,6 @@
+# Initial project-only proposal based on the supplied handbook. Verify in installed OMP.
+memory:
+  backend: off
+autolearn:
+  enabled: false
+  autoContinue: false

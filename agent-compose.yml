@@ -1,0 +1,12 @@
+# Offline, synthetic demonstration only. Actual upstream parser/run NOT_RUN here.
+# The image field is literal: upstream does not interpolate ${ENV} in image.
+name: compliance-query-demo
+env_file: []
+agents:
+  compliance-query:
+    provider: pi
+    image: compliance-query-agent-guest:dev
+    driver:
+      docker: {}
+# No schedule, no arbitrary prompt, no LLM key, no OctoBus or host workspace mount.
+# Use only scripts/run-compose-demo.sh's fixed command.

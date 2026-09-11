@@ -1,0 +1,2 @@
+?   	compliance-query-agent/cmd/compliance-agent	[no test files]
+ok  	compliance-query-agent/internal/agent	1.650s

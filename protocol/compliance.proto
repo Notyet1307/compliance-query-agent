@@ -1,0 +1,50 @@
+syntax = "proto3";
+package compliance.v1;
+
+// Proposed service contract owned by this project; NOT built into OctoBus.
+// This startup package provides the client, not a service implementation.
+service KnowledgeService {
+  rpc Search(SearchRequest) returns (SearchResponse);
+}
+message SearchRequest {
+  string schema_version = 1;
+  string query = 2;
+  string topic = 3;
+  string as_of_date = 4;
+  string jurisdiction = 5;
+  string industry = 6;
+  int32 limit = 7;
+}
+message SearchResponse {
+  Corpus corpus = 1;
+  bool truncated = 2;
+}
+message Corpus {
+  string schema_version = 1;
+  string dataset_id = 2;
+  bool synthetic = 3;
+  repeated Source sources = 4;
+}
+message Source {
+  string id = 1;
+  string document_id = 2;
+  string title = 3;
+  string version = 4;
+  string topic = 5;
+  string jurisdiction = 6;
+  string industry = 7;
+  string publisher = 8;
+  string source_kind = 9;
+  string uri = 10;
+  string locator = 11;
+  string published_at = 12;
+  string effective_from = 13;
+  string effective_to = 14;
+  string validity_checked_at = 15;
+  string status = 16;
+  bool curator_reviewed = 17;
+  bool synthetic = 18;
+  repeated string keywords = 19;
+  string text = 20;
+  string sha256 = 21;
+}

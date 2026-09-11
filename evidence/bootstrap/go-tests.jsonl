@@ -1,0 +1,155 @@
+{"Time":"2026-09-10T10:38:09.679849104Z","Action":"start","Package":"compliance-query-agent/cmd/compliance-agent"}
+{"Time":"2026-09-10T10:38:09.680010688Z","Action":"output","Package":"compliance-query-agent/cmd/compliance-agent","Output":"?   \tcompliance-query-agent/cmd/compliance-agent\t[no test files]\n"}
+{"Time":"2026-09-10T10:38:09.680037966Z","Action":"skip","Package":"compliance-query-agent/cmd/compliance-agent","Elapsed":0}
+{"Time":"2026-09-10T10:38:10.279204369Z","Action":"start","Package":"compliance-query-agent/internal/agent"}
+{"Time":"2026-09-10T10:38:10.298687662Z","Action":"run","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions"}
+{"Time":"2026-09-10T10:38:10.298743797Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions","Output":"=== RUN   TestFiveDomainsAndExceptions\n"}
+{"Time":"2026-09-10T10:38:10.298962712Z","Action":"run","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions/mlps"}
+{"Time":"2026-09-10T10:38:10.298966512Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions/mlps","Output":"=== RUN   TestFiveDomainsAndExceptions/mlps\n"}
+{"Time":"2026-09-10T10:38:10.304130351Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions/mlps","Output":"--- PASS: TestFiveDomainsAndExceptions/mlps (0.01s)\n"}
+{"Time":"2026-09-10T10:38:10.304168447Z","Action":"pass","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions/mlps","Elapsed":0.01}
+{"Time":"2026-09-10T10:38:10.304198229Z","Action":"run","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions/ciip"}
+{"Time":"2026-09-10T10:38:10.304202182Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions/ciip","Output":"=== RUN   TestFiveDomainsAndExceptions/ciip\n"}
+{"Time":"2026-09-10T10:38:10.307927897Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions/ciip","Output":"--- PASS: TestFiveDomainsAndExceptions/ciip (0.00s)\n"}
+{"Time":"2026-09-10T10:38:10.308129525Z","Action":"pass","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions/ciip","Elapsed":0}
+{"Time":"2026-09-10T10:38:10.308140378Z","Action":"run","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions/policy"}
+{"Time":"2026-09-10T10:38:10.30814334Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions/policy","Output":"=== RUN   TestFiveDomainsAndExceptions/policy\n"}
+{"Time":"2026-09-10T10:38:10.312310959Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions/policy","Output":"--- PASS: TestFiveDomainsAndExceptions/policy (0.00s)\n"}
+{"Time":"2026-09-10T10:38:10.312333506Z","Action":"pass","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions/policy","Elapsed":0}
+{"Time":"2026-09-10T10:38:10.31233882Z","Action":"run","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions/industry"}
+{"Time":"2026-09-10T10:38:10.312341804Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions/industry","Output":"=== RUN   TestFiveDomainsAndExceptions/industry\n"}
+{"Time":"2026-09-10T10:38:10.316069804Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions/industry","Output":"--- PASS: TestFiveDomainsAndExceptions/industry (0.00s)\n"}
+{"Time":"2026-09-10T10:38:10.316101237Z","Action":"pass","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions/industry","Elapsed":0}
+{"Time":"2026-09-10T10:38:10.316106745Z","Action":"run","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions/crypto"}
+{"Time":"2026-09-10T10:38:10.316109599Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions/crypto","Output":"=== RUN   TestFiveDomainsAndExceptions/crypto\n"}
+{"Time":"2026-09-10T10:38:10.319703003Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions/crypto","Output":"--- PASS: TestFiveDomainsAndExceptions/crypto (0.00s)\n"}
+{"Time":"2026-09-10T10:38:10.319723097Z","Action":"pass","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions/crypto","Elapsed":0}
+{"Time":"2026-09-10T10:38:10.319727339Z","Action":"run","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions/no-evidence"}
+{"Time":"2026-09-10T10:38:10.319730242Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions/no-evidence","Output":"=== RUN   TestFiveDomainsAndExceptions/no-evidence\n"}
+{"Time":"2026-09-10T10:38:10.323215763Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions/no-evidence","Output":"--- PASS: TestFiveDomainsAndExceptions/no-evidence (0.00s)\n"}
+{"Time":"2026-09-10T10:38:10.323234316Z","Action":"pass","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions/no-evidence","Elapsed":0}
+{"Time":"2026-09-10T10:38:10.323238697Z","Action":"run","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions/stale"}
+{"Time":"2026-09-10T10:38:10.323241444Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions/stale","Output":"=== RUN   TestFiveDomainsAndExceptions/stale\n"}
+{"Time":"2026-09-10T10:38:10.326453208Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions/stale","Output":"--- PASS: TestFiveDomainsAndExceptions/stale (0.00s)\n"}
+{"Time":"2026-09-10T10:38:10.326469423Z","Action":"pass","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions/stale","Elapsed":0}
+{"Time":"2026-09-10T10:38:10.326488819Z","Action":"run","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions/conflict"}
+{"Time":"2026-09-10T10:38:10.326494644Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions/conflict","Output":"=== RUN   TestFiveDomainsAndExceptions/conflict\n"}
+{"Time":"2026-09-10T10:38:10.329500537Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions/conflict","Output":"--- PASS: TestFiveDomainsAndExceptions/conflict (0.00s)\n"}
+{"Time":"2026-09-10T10:38:10.329523135Z","Action":"pass","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions/conflict","Elapsed":0}
+{"Time":"2026-09-10T10:38:10.329527093Z","Action":"run","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions/future"}
+{"Time":"2026-09-10T10:38:10.329529734Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions/future","Output":"=== RUN   TestFiveDomainsAndExceptions/future\n"}
+{"Time":"2026-09-10T10:38:10.332681847Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions/future","Output":"--- PASS: TestFiveDomainsAndExceptions/future (0.00s)\n"}
+{"Time":"2026-09-10T10:38:10.332708395Z","Action":"pass","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions/future","Elapsed":0}
+{"Time":"2026-09-10T10:38:10.332716955Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions","Output":"--- PASS: TestFiveDomainsAndExceptions (0.03s)\n"}
+{"Time":"2026-09-10T10:38:10.332723797Z","Action":"pass","Package":"compliance-query-agent/internal/agent","Test":"TestFiveDomainsAndExceptions","Elapsed":0.03}
+{"Time":"2026-09-10T10:38:10.332812314Z","Action":"run","Package":"compliance-query-agent/internal/agent","Test":"TestNoEvidenceDoesNotCallLLM"}
+{"Time":"2026-09-10T10:38:10.332832779Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestNoEvidenceDoesNotCallLLM","Output":"=== RUN   TestNoEvidenceDoesNotCallLLM\n"}
+{"Time":"2026-09-10T10:38:10.336145401Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestNoEvidenceDoesNotCallLLM","Output":"--- PASS: TestNoEvidenceDoesNotCallLLM (0.00s)\n"}
+{"Time":"2026-09-10T10:38:10.336188297Z","Action":"pass","Package":"compliance-query-agent/internal/agent","Test":"TestNoEvidenceDoesNotCallLLM","Elapsed":0}
+{"Time":"2026-09-10T10:38:10.336420269Z","Action":"run","Package":"compliance-query-agent/internal/agent","Test":"TestIdempotencyAndConflict"}
+{"Time":"2026-09-10T10:38:10.33650455Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestIdempotencyAndConflict","Output":"=== RUN   TestIdempotencyAndConflict\n"}
+{"Time":"2026-09-10T10:38:10.361430109Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestIdempotencyAndConflict","Output":"--- PASS: TestIdempotencyAndConflict (0.02s)\n"}
+{"Time":"2026-09-10T10:38:10.36148188Z","Action":"pass","Package":"compliance-query-agent/internal/agent","Test":"TestIdempotencyAndConflict","Elapsed":0.02}
+{"Time":"2026-09-10T10:38:10.361490062Z","Action":"run","Package":"compliance-query-agent/internal/agent","Test":"TestConcurrentReservation"}
+{"Time":"2026-09-10T10:38:10.361493128Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestConcurrentReservation","Output":"=== RUN   TestConcurrentReservation\n"}
+{"Time":"2026-09-10T10:38:10.392440109Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestConcurrentReservation","Output":"--- PASS: TestConcurrentReservation (0.03s)\n"}
+{"Time":"2026-09-10T10:38:10.392481301Z","Action":"pass","Package":"compliance-query-agent/internal/agent","Test":"TestConcurrentReservation","Elapsed":0.03}
+{"Time":"2026-09-10T10:38:10.392488561Z","Action":"run","Package":"compliance-query-agent/internal/agent","Test":"TestRestartReplaysReceipt"}
+{"Time":"2026-09-10T10:38:10.392492366Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestRestartReplaysReceipt","Output":"=== RUN   TestRestartReplaysReceipt\n"}
+{"Time":"2026-09-10T10:38:10.398966741Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestRestartReplaysReceipt","Output":"--- PASS: TestRestartReplaysReceipt (0.01s)\n"}
+{"Time":"2026-09-10T10:38:10.399055315Z","Action":"pass","Package":"compliance-query-agent/internal/agent","Test":"TestRestartReplaysReceipt","Elapsed":0.01}
+{"Time":"2026-09-10T10:38:10.399119303Z","Action":"run","Package":"compliance-query-agent/internal/agent","Test":"TestReservedNeverRetries"}
+{"Time":"2026-09-10T10:38:10.399126636Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestReservedNeverRetries","Output":"=== RUN   TestReservedNeverRetries\n"}
+{"Time":"2026-09-10T10:38:10.400941858Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestReservedNeverRetries","Output":"--- PASS: TestReservedNeverRetries (0.00s)\n"}
+{"Time":"2026-09-10T10:38:10.401013472Z","Action":"pass","Package":"compliance-query-agent/internal/agent","Test":"TestReservedNeverRetries","Elapsed":0}
+{"Time":"2026-09-10T10:38:10.401071602Z","Action":"run","Package":"compliance-query-agent/internal/agent","Test":"TestConfigDrift"}
+{"Time":"2026-09-10T10:38:10.401078581Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestConfigDrift","Output":"=== RUN   TestConfigDrift\n"}
+{"Time":"2026-09-10T10:38:10.404475106Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestConfigDrift","Output":"--- PASS: TestConfigDrift (0.00s)\n"}
+{"Time":"2026-09-10T10:38:10.4045556Z","Action":"pass","Package":"compliance-query-agent/internal/agent","Test":"TestConfigDrift","Elapsed":0}
+{"Time":"2026-09-10T10:38:10.404600476Z","Action":"run","Package":"compliance-query-agent/internal/agent","Test":"TestDigestTampering"}
+{"Time":"2026-09-10T10:38:10.404611479Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestDigestTampering","Output":"=== RUN   TestDigestTampering\n"}
+{"Time":"2026-09-10T10:38:10.406038438Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestDigestTampering","Output":"--- PASS: TestDigestTampering (0.00s)\n"}
+{"Time":"2026-09-10T10:38:10.406100715Z","Action":"pass","Package":"compliance-query-agent/internal/agent","Test":"TestDigestTampering","Elapsed":0}
+{"Time":"2026-09-10T10:38:10.406158452Z","Action":"run","Package":"compliance-query-agent/internal/agent","Test":"TestSyntheticDenied"}
+{"Time":"2026-09-10T10:38:10.406163831Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestSyntheticDenied","Output":"=== RUN   TestSyntheticDenied\n"}
+{"Time":"2026-09-10T10:38:10.40767233Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestSyntheticDenied","Output":"--- PASS: TestSyntheticDenied (0.00s)\n"}
+{"Time":"2026-09-10T10:38:10.407722159Z","Action":"pass","Package":"compliance-query-agent/internal/agent","Test":"TestSyntheticDenied","Elapsed":0}
+{"Time":"2026-09-10T10:38:10.407757611Z","Action":"run","Package":"compliance-query-agent/internal/agent","Test":"TestUnknownTopicAndBadDate"}
+{"Time":"2026-09-10T10:38:10.407761968Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestUnknownTopicAndBadDate","Output":"=== RUN   TestUnknownTopicAndBadDate\n"}
+{"Time":"2026-09-10T10:38:10.407816525Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestUnknownTopicAndBadDate","Output":"--- PASS: TestUnknownTopicAndBadDate (0.00s)\n"}
+{"Time":"2026-09-10T10:38:10.407846528Z","Action":"pass","Package":"compliance-query-agent/internal/agent","Test":"TestUnknownTopicAndBadDate","Elapsed":0}
+{"Time":"2026-09-10T10:38:10.407908486Z","Action":"run","Package":"compliance-query-agent/internal/agent","Test":"TestStrictJSON"}
+{"Time":"2026-09-10T10:38:10.407912938Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestStrictJSON","Output":"=== RUN   TestStrictJSON\n"}
+{"Time":"2026-09-10T10:38:10.408228803Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestStrictJSON","Output":"--- PASS: TestStrictJSON (0.00s)\n"}
+{"Time":"2026-09-10T10:38:10.408349459Z","Action":"pass","Package":"compliance-query-agent/internal/agent","Test":"TestStrictJSON","Elapsed":0}
+{"Time":"2026-09-10T10:38:10.408429099Z","Action":"run","Package":"compliance-query-agent/internal/agent","Test":"TestCorrelationBinding"}
+{"Time":"2026-09-10T10:38:10.408434135Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestCorrelationBinding","Output":"=== RUN   TestCorrelationBinding\n"}
+{"Time":"2026-09-10T10:38:10.41141103Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestCorrelationBinding","Output":"--- PASS: TestCorrelationBinding (0.00s)\n"}
+{"Time":"2026-09-10T10:38:10.411491303Z","Action":"pass","Package":"compliance-query-agent/internal/agent","Test":"TestCorrelationBinding","Elapsed":0}
+{"Time":"2026-09-10T10:38:10.4115366Z","Action":"run","Package":"compliance-query-agent/internal/agent","Test":"TestHistoricalInterval"}
+{"Time":"2026-09-10T10:38:10.411544625Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestHistoricalInterval","Output":"=== RUN   TestHistoricalInterval\n"}
+{"Time":"2026-09-10T10:38:10.416442304Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestHistoricalInterval","Output":"--- PASS: TestHistoricalInterval (0.00s)\n"}
+{"Time":"2026-09-10T10:38:10.416462107Z","Action":"pass","Package":"compliance-query-agent/internal/agent","Test":"TestHistoricalInterval","Elapsed":0}
+{"Time":"2026-09-10T10:38:10.41646656Z","Action":"run","Package":"compliance-query-agent/internal/agent","Test":"TestIndustryIsolation"}
+{"Time":"2026-09-10T10:38:10.416469358Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestIndustryIsolation","Output":"=== RUN   TestIndustryIsolation\n"}
+{"Time":"2026-09-10T10:38:10.416945232Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestIndustryIsolation","Output":"--- PASS: TestIndustryIsolation (0.00s)\n"}
+{"Time":"2026-09-10T10:38:10.41699977Z","Action":"pass","Package":"compliance-query-agent/internal/agent","Test":"TestIndustryIsolation","Elapsed":0}
+{"Time":"2026-09-10T10:38:10.417034844Z","Action":"run","Package":"compliance-query-agent/internal/agent","Test":"TestUnreviewedSourceBlocks"}
+{"Time":"2026-09-10T10:38:10.417038864Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestUnreviewedSourceBlocks","Output":"=== RUN   TestUnreviewedSourceBlocks\n"}
+{"Time":"2026-09-10T10:38:10.41788116Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestUnreviewedSourceBlocks","Output":"--- PASS: TestUnreviewedSourceBlocks (0.00s)\n"}
+{"Time":"2026-09-10T10:38:10.41794243Z","Action":"pass","Package":"compliance-query-agent/internal/agent","Test":"TestUnreviewedSourceBlocks","Elapsed":0}
+{"Time":"2026-09-10T10:38:10.41797808Z","Action":"run","Package":"compliance-query-agent/internal/agent","Test":"TestModelCitationValidation"}
+{"Time":"2026-09-10T10:38:10.417982331Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestModelCitationValidation","Output":"=== RUN   TestModelCitationValidation\n"}
+{"Time":"2026-09-10T10:38:10.419145942Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestModelCitationValidation","Output":"--- PASS: TestModelCitationValidation (0.00s)\n"}
+{"Time":"2026-09-10T10:38:10.419249526Z","Action":"pass","Package":"compliance-query-agent/internal/agent","Test":"TestModelCitationValidation","Elapsed":0}
+{"Time":"2026-09-10T10:38:10.41933774Z","Action":"run","Package":"compliance-query-agent/internal/agent","Test":"TestNetworkApprovalAndTLS"}
+{"Time":"2026-09-10T10:38:10.419343763Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestNetworkApprovalAndTLS","Output":"=== RUN   TestNetworkApprovalAndTLS\n"}
+{"Time":"2026-09-10T10:38:10.419877874Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestNetworkApprovalAndTLS","Output":"--- PASS: TestNetworkApprovalAndTLS (0.00s)\n"}
+{"Time":"2026-09-10T10:38:10.419934444Z","Action":"pass","Package":"compliance-query-agent/internal/agent","Test":"TestNetworkApprovalAndTLS","Elapsed":0}
+{"Time":"2026-09-10T10:38:10.419969224Z","Action":"run","Package":"compliance-query-agent/internal/agent","Test":"TestServerAuthAndLoopback"}
+{"Time":"2026-09-10T10:38:10.419973163Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestServerAuthAndLoopback","Output":"=== RUN   TestServerAuthAndLoopback\n"}
+{"Time":"2026-09-10T10:38:10.422747776Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestServerAuthAndLoopback","Output":"--- PASS: TestServerAuthAndLoopback (0.00s)\n"}
+{"Time":"2026-09-10T10:38:10.42282669Z","Action":"pass","Package":"compliance-query-agent/internal/agent","Test":"TestServerAuthAndLoopback","Elapsed":0}
+{"Time":"2026-09-10T10:38:10.422872158Z","Action":"run","Package":"compliance-query-agent/internal/agent","Test":"TestAPIRejectsOversizedBody"}
+{"Time":"2026-09-10T10:38:10.422876518Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestAPIRejectsOversizedBody","Output":"=== RUN   TestAPIRejectsOversizedBody\n"}
+{"Time":"2026-09-10T10:38:10.424754695Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestAPIRejectsOversizedBody","Output":"--- PASS: TestAPIRejectsOversizedBody (0.00s)\n"}
+{"Time":"2026-09-10T10:38:10.424830327Z","Action":"pass","Package":"compliance-query-agent/internal/agent","Test":"TestAPIRejectsOversizedBody","Elapsed":0}
+{"Time":"2026-09-10T10:38:10.424882235Z","Action":"run","Package":"compliance-query-agent/internal/agent","Test":"TestModelHTTPContract"}
+{"Time":"2026-09-10T10:38:10.424889951Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestModelHTTPContract","Output":"=== RUN   TestModelHTTPContract\n"}
+{"Time":"2026-09-10T10:38:10.438514461Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestModelHTTPContract","Output":"--- PASS: TestModelHTTPContract (0.01s)\n"}
+{"Time":"2026-09-10T10:38:10.438547415Z","Action":"pass","Package":"compliance-query-agent/internal/agent","Test":"TestModelHTTPContract","Elapsed":0.01}
+{"Time":"2026-09-10T10:38:10.438553662Z","Action":"run","Package":"compliance-query-agent/internal/agent","Test":"TestModelRejectsForgedCitationAndDoesNotRetry"}
+{"Time":"2026-09-10T10:38:10.438556835Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestModelRejectsForgedCitationAndDoesNotRetry","Output":"=== RUN   TestModelRejectsForgedCitationAndDoesNotRetry\n"}
+{"Time":"2026-09-10T10:38:10.442698519Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestModelRejectsForgedCitationAndDoesNotRetry","Output":"--- PASS: TestModelRejectsForgedCitationAndDoesNotRetry (0.00s)\n"}
+{"Time":"2026-09-10T10:38:10.442726395Z","Action":"pass","Package":"compliance-query-agent/internal/agent","Test":"TestModelRejectsForgedCitationAndDoesNotRetry","Elapsed":0}
+{"Time":"2026-09-10T10:38:10.442732256Z","Action":"run","Package":"compliance-query-agent/internal/agent","Test":"TestCredentialReflectionBlocked"}
+{"Time":"2026-09-10T10:38:10.442735084Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestCredentialReflectionBlocked","Output":"=== RUN   TestCredentialReflectionBlocked\n"}
+{"Time":"2026-09-10T10:38:10.443261238Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestCredentialReflectionBlocked","Output":"--- PASS: TestCredentialReflectionBlocked (0.00s)\n"}
+{"Time":"2026-09-10T10:38:10.443277152Z","Action":"pass","Package":"compliance-query-agent/internal/agent","Test":"TestCredentialReflectionBlocked","Elapsed":0}
+{"Time":"2026-09-10T10:38:10.443281869Z","Action":"run","Package":"compliance-query-agent/internal/agent","Test":"TestNoRedirect"}
+{"Time":"2026-09-10T10:38:10.443284872Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestNoRedirect","Output":"=== RUN   TestNoRedirect\n"}
+{"Time":"2026-09-10T10:38:10.444019186Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestNoRedirect","Output":"--- PASS: TestNoRedirect (0.00s)\n"}
+{"Time":"2026-09-10T10:38:10.444035223Z","Action":"pass","Package":"compliance-query-agent/internal/agent","Test":"TestNoRedirect","Elapsed":0}
+{"Time":"2026-09-10T10:38:10.444072023Z","Action":"run","Package":"compliance-query-agent/internal/agent","Test":"TestOctobusConnectContract"}
+{"Time":"2026-09-10T10:38:10.444075655Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestOctobusConnectContract","Output":"=== RUN   TestOctobusConnectContract\n"}
+{"Time":"2026-09-10T10:38:10.448066712Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestOctobusConnectContract","Output":"--- PASS: TestOctobusConnectContract (0.00s)\n"}
+{"Time":"2026-09-10T10:38:10.448089399Z","Action":"pass","Package":"compliance-query-agent/internal/agent","Test":"TestOctobusConnectContract","Elapsed":0}
+{"Time":"2026-09-10T10:38:10.448094259Z","Action":"run","Package":"compliance-query-agent/internal/agent","Test":"TestOctobusTruncationBlocks"}
+{"Time":"2026-09-10T10:38:10.448097333Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestOctobusTruncationBlocks","Output":"=== RUN   TestOctobusTruncationBlocks\n"}
+{"Time":"2026-09-10T10:38:10.448989527Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestOctobusTruncationBlocks","Output":"--- PASS: TestOctobusTruncationBlocks (0.00s)\n"}
+{"Time":"2026-09-10T10:38:10.449008534Z","Action":"pass","Package":"compliance-query-agent/internal/agent","Test":"TestOctobusTruncationBlocks","Elapsed":0}
+{"Time":"2026-09-10T10:38:10.449012985Z","Action":"run","Package":"compliance-query-agent/internal/agent","Test":"TestDeadlineAndReceipt"}
+{"Time":"2026-09-10T10:38:10.449024023Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestDeadlineAndReceipt","Output":"=== RUN   TestDeadlineAndReceipt\n"}
+{"Time":"2026-09-10T10:38:10.451582738Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestDeadlineAndReceipt","Output":"--- PASS: TestDeadlineAndReceipt (0.00s)\n"}
+{"Time":"2026-09-10T10:38:10.451605024Z","Action":"pass","Package":"compliance-query-agent/internal/agent","Test":"TestDeadlineAndReceipt","Elapsed":0}
+{"Time":"2026-09-10T10:38:10.451609603Z","Action":"run","Package":"compliance-query-agent/internal/agent","Test":"TestStorePermissionsAndPath"}
+{"Time":"2026-09-10T10:38:10.451612513Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestStorePermissionsAndPath","Output":"=== RUN   TestStorePermissionsAndPath\n"}
+{"Time":"2026-09-10T10:38:10.4564226Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestStorePermissionsAndPath","Output":"--- PASS: TestStorePermissionsAndPath (0.00s)\n"}
+{"Time":"2026-09-10T10:38:10.456444437Z","Action":"pass","Package":"compliance-query-agent/internal/agent","Test":"TestStorePermissionsAndPath","Elapsed":0}
+{"Time":"2026-09-10T10:38:10.456456994Z","Action":"run","Package":"compliance-query-agent/internal/agent","Test":"TestLoopbackHTTPAllowedOnlyExplicitly"}
+{"Time":"2026-09-10T10:38:10.456459972Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestLoopbackHTTPAllowedOnlyExplicitly","Output":"=== RUN   TestLoopbackHTTPAllowedOnlyExplicitly\n"}
+{"Time":"2026-09-10T10:38:10.456464592Z","Action":"output","Package":"compliance-query-agent/internal/agent","Test":"TestLoopbackHTTPAllowedOnlyExplicitly","Output":"--- PASS: TestLoopbackHTTPAllowedOnlyExplicitly (0.00s)\n"}
+{"Time":"2026-09-10T10:38:10.456468195Z","Action":"pass","Package":"compliance-query-agent/internal/agent","Test":"TestLoopbackHTTPAllowedOnlyExplicitly","Elapsed":0}
+{"Time":"2026-09-10T10:38:10.45647137Z","Action":"output","Package":"compliance-query-agent/internal/agent","Output":"PASS\n"}
+{"Time":"2026-09-10T10:38:10.457220766Z","Action":"output","Package":"compliance-query-agent/internal/agent","Output":"ok  \tcompliance-query-agent/internal/agent\t0.177s\n"}
+{"Time":"2026-09-10T10:38:10.457301472Z","Action":"pass","Package":"compliance-query-agent/internal/agent","Elapsed":0.178}

@@ -1,0 +1,19 @@
+# PROPOSAL ONLY: native guest gateway discovery/transport not implemented in Go yet.
+# NOT a live-ready config. Field shapes were checked against upstream docs, not parser.
+name: compliance-query-native-proposal
+env_file: []
+octobus_servers:
+  enterprise:
+    url: ${CQA_OCTOBUS_URL}
+    token: ${CQA_OCTOBUS_GATEWAY_TOKEN}
+agents:
+  compliance-query:
+    provider: pi
+    image: compliance-query-agent-guest:dev
+    driver:
+      docker: {}
+    capset_ids:
+      - enterprise/compliance-readonly
+# Do not enable a scheduler or wire real model/data before X1/S1/S2 approval.
+# Upstream token remains daemon-side on this native route. This is not the direct
+# Connect adapter configured by configs/live.example.json.

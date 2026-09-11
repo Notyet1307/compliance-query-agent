@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "cqa.query/v1",
+  "requestId": "demo-crypto-001",
+  "question": "演示密码应用台账记录什么？",
+  "topic": "commercial_crypto",
+  "asOfDate": "2026-09-10",
+  "jurisdiction": "CN",
+  "industry": "telecom"
+}

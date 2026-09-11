@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "cqa.query/v1",
+  "requestId": "demo-future-001",
+  "question": "请查询未来条目测试",
+  "topic": "security_policy",
+  "asOfDate": "2026-09-10",
+  "jurisdiction": "CN",
+  "industry": "telecom"
+}

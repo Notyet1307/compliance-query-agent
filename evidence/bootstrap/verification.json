@@ -1,0 +1,135 @@
+{
+  "schemaVersion": "cqa.bootstrap-verification/v1",
+  "createdAt": "2026-09-10T10:41:33.011962+00:00",
+  "qualification": "GENERATED_ENVIRONMENT_ONLY",
+  "dataMode": "synthetic_demo",
+  "environment": {
+    "platform": "Linux-6.18.35-x86_64-with-glibc2.41",
+    "go": "go version go1.23.2 linux/amd64",
+    "python": "3.13.5",
+    "availableTools": {
+      "go": true,
+      "make": true,
+      "python3": true,
+      "docker": false,
+      "agent-compose": false,
+      "octobus": false,
+      "omp": false,
+      "protoc": false
+    }
+  },
+  "sourceManifestSHA256": "ef579094c408eab36cb89cb639b4926da3be19f36bc1ed9358aa9fe6b58481ce",
+  "checks": [
+    {
+      "name": "Go formatting",
+      "command": "gofmt -l cmd internal",
+      "status": "PASS",
+      "evidence": "gofmt.txt"
+    },
+    {
+      "name": "Go tests",
+      "command": "GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off go test -json -count=1 ./...",
+      "status": "PASS",
+      "rootTests": 28,
+      "passEventsIncludingSubtests": 37,
+      "failed": 0,
+      "skippedTests": 0,
+      "packagesWithoutTestFiles": [
+        "compliance-query-agent/cmd/compliance-agent"
+      ],
+      "evidence": "go-tests.jsonl"
+    },
+    {
+      "name": "Go vet",
+      "command": "GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off go vet ./...",
+      "status": "PASS",
+      "evidence": "vet.txt"
+    },
+    {
+      "name": "Go build",
+      "command": "GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off go build -trimpath -o bin/compliance-agent ./cmd/compliance-agent",
+      "status": "PASS",
+      "evidence": "build.txt",
+      "binarySHA256": "05532e040bf96e4ca3744d0ac076711181eb03a686b506843d58db63d05af51e"
+    },
+    {
+      "name": "Local repository materials",
+      "command": "python3 scripts/repo-check.py",
+      "status": "PASS",
+      "evidence": "repo-check.json",
+      "scope": "Authored JSON syntax, required material paths, and local Markdown links. NOT the upstream YAML parser."
+    },
+    {
+      "name": "Actual CLI and loopback server processes",
+      "command": "python3 scripts/smoke.py --binary bin/compliance-agent",
+      "status": "PASS",
+      "checks": 20,
+      "evidence": "smoke.json"
+    },
+    {
+      "name": "Go race tests",
+      "command": "GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off go test -race -count=1 ./...",
+      "status": "PASS",
+      "exitCode": 0,
+      "evidence": "race.txt"
+    }
+  ],
+  "notQualified": [
+    {
+      "name": "Target Go 1.27.1",
+      "status": "NOT_RUN",
+      "reason": "Not installed here; checks used existing Go 1.23.2, not a production toolchain recommendation."
+    },
+    {
+      "name": "User Mac / final deployment server",
+      "status": "NOT_RUN",
+      "reason": "No execution on those machines."
+    },
+    {
+      "name": "Real LLM",
+      "status": "BLOCKED",
+      "reason": "No approved endpoint/model/credentials/data egress. httptest only."
+    },
+    {
+      "name": "Real OctoBus Search service",
+      "status": "BLOCKED",
+      "reason": "No OctoBus binary/service instance/capset/approved credentials. Custom Search proto is a proposal."
+    },
+    {
+      "name": "agent-compose parser/guest build/daemon run",
+      "status": "BLOCKED",
+      "reason": "agent-compose and Docker not installed. Supplied manifests were not accepted by actual upstream parser here."
+    },
+    {
+      "name": "Native agent-compose OctoBus guest integration",
+      "status": "NOT_IMPLEMENTED",
+      "reason": "Configuration proposal only; discover/injected gateway client route is not implemented."
+    },
+    {
+      "name": "Accord role registration and end-to-end Case",
+      "status": "NOT_IMPLEMENTED",
+      "reason": "Role proposal only. No Accord writes, execution or integration test; current R003 fixed-profile contract requires separately authorized change."
+    },
+    {
+      "name": "OMP and Matt Skills takeover",
+      "status": "BLOCKED",
+      "reason": "OMP/skills not installed or executed here; repo adaptation documents and takeover prompt only."
+    },
+    {
+      "name": "Real legal/standard corpus / business quality qualification",
+      "status": "NOT_RUN",
+      "reason": "All included source texts are authored fictional fixtures, not law, policy or standards."
+    },
+    {
+      "name": "Docker image supply chain and upstream license review",
+      "status": "NOT_RUN",
+      "reason": "Owner must approve image/version/license/distribution; none selected on their behalf."
+    }
+  ],
+  "notes": [
+    "No external model calls, credential discovery, remote repository writes, Issue publication, deployment, license choice, or visibility choice.",
+    "Make verify uses local TCP listeners/processes; no outbound internet tests.",
+    "Bootstrap source checks are not a security sandbox or legal accuracy certification.",
+    "Early development attempts included fixed compile/smoke assertion errors and cold-build timeouts; only final completed checks are PASS."
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "cqa.accord-role-proposal/v1",
+  "status": "PROPOSAL_NOT_REGISTERED",
+  "isAccordImportFormat": false,
+  "roleId": "security-compliance-researcher",
+  "displayName": "合规资料研究员",
+  "capability": "security.compliance.query",
+  "topics": [
+    "mlps",
+    "ciip",
+    "security_policy",
+    "industry",
+    "commercial_crypto"
+  ],
+  "runtimeProposal": {
+    "kind": "agent-compose",
+    "agent": "compliance-query",
+    "entry": "fixed-command",
+    "llmOwner": "compliance-query-agent"
+  },
+  "inputSchema": "cqa.query/v1",
+  "outputSchema": "cqa.result/v1",
+  "allowedActions": [
+    "read_approved_knowledge",
+    "produce_cited_draft"
+  ],
+  "forbiddenActions": [
+    "accord_database_write",
+    "accept_own_evidence",
+    "approve",
+    "publish",
+    "modify_external_system",
+    "arbitrary_shell",
+    "arbitrary_url_fetch"
+  ],
+  "proposedCognitiveStage": "RESEARCHER specialization, subject to Accord-approved extension",
+  "requiresAccordSideWork": true,
+  "accordInspectedCommit": "2668ee62f249d462930bd980c8178ce5f24f7f6e"
+}

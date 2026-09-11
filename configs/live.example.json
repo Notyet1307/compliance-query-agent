@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "cqa.config/v1",
+  "storeDir": "../.local/live-receipts",
+  "allowSynthetic": false,
+  "networkApproved": false,
+  "timeoutSeconds": 30,
+  "knowledge": {
+    "mode": "octobus_connect",
+    "endpoint": "https://octobus.example.invalid/capsets/compliance-readonly/connect/compliance-kb/compliance.v1.KnowledgeService/Search",
+    "tokenEnv": "CQA_OCTOBUS_TOKEN"
+  },
+  "generation": {
+    "mode": "llm",
+    "endpoint": "https://llm.example.invalid/v1/chat/completions",
+    "model": "OPERATOR_MUST_SELECT",
+    "tokenEnv": "CQA_LLM_TOKEN",
+    "maxTokens": 2048
+  },
+  "server": {
+    "listen": "127.0.0.1:8088",
+    "tokenEnv": "CQA_API_TOKEN"
+  }
+}

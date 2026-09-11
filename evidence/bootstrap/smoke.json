@@ -1,0 +1,92 @@
+{
+  "status": "PASS",
+  "checks": [
+    {
+      "name": "cli_mlps",
+      "status": "PASS"
+    },
+    {
+      "name": "cli_ciip",
+      "status": "PASS"
+    },
+    {
+      "name": "cli_policy",
+      "status": "PASS"
+    },
+    {
+      "name": "cli_industry",
+      "status": "PASS"
+    },
+    {
+      "name": "cli_crypto",
+      "status": "PASS"
+    },
+    {
+      "name": "cli_insufficient",
+      "status": "PASS"
+    },
+    {
+      "name": "cli_stale",
+      "status": "PASS"
+    },
+    {
+      "name": "cli_conflict",
+      "status": "PASS"
+    },
+    {
+      "name": "cli_future",
+      "status": "PASS"
+    },
+    {
+      "name": "cli_replay_across_process_restarts",
+      "status": "PASS"
+    },
+    {
+      "name": "cli_idempotency_conflict",
+      "status": "PASS"
+    },
+    {
+      "name": "cli_invalid_request_id",
+      "status": "PASS"
+    },
+    {
+      "name": "http_health_process_only",
+      "status": "PASS"
+    },
+    {
+      "name": "http_auth_required",
+      "status": "PASS"
+    },
+    {
+      "name": "http_real_query",
+      "status": "PASS"
+    },
+    {
+      "name": "http_replay",
+      "status": "PASS"
+    },
+    {
+      "name": "http_reject_invalid_media_type",
+      "status": "PASS"
+    },
+    {
+      "name": "http_reject_duplicate_json",
+      "status": "PASS"
+    },
+    {
+      "name": "http_size_limit",
+      "status": "PASS"
+    },
+    {
+      "name": "http_clean_shutdown_no_credential_reflection",
+      "status": "PASS"
+    }
+  ],
+  "check_count": 20,
+  "data": "synthetic_only",
+  "network": "literal_loopback_only",
+  "live_llm": "NOT_RUN",
+  "live_octobus": "NOT_RUN",
+  "agent_compose": "NOT_RUN",
+  "accord": "NOT_RUN"
+}
