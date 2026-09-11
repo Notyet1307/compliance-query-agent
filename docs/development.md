@@ -125,3 +125,18 @@ make verify
 ### 独立发布候选
 
 S1-02 按实施前快照从混合工作树分离，不夹带尚未提交的 X1 原生 adapter／部署文件。发布树与含 X1 的本地工作树分别验证；原生 LLM 情形按“明确拒绝且零发送”验收，不依赖某一未发布实现的错误码。独立树不支持原生模式，本地 X1 的合成／extractive 限制不变。发布阶段的树摘要、命令和结果另存 `.local/s1-02-publication/`；原有混合候选证据不能替代独立提交树验证。
+
+## S1-01 单文档测试
+
+用户已将本轮范围缩减为保留一份本地测试文档，后续再增加 RAG；不继续来源追查或扩库。
+
+当前文档：`testdata/s1-test-document.json`，同一份测试材料包含第15／16条候选转录。正文注明“仅供软件测试、非现行法规依据”；`synthetic:true`，日期／状态／审核字段全部是合成测试值，不是把代理转录审核成真实法规。配套 `configs/s1-test.json` 固定 local／extractive、关闭网络；`examples/s1-test.json` 使用已确认的全国问题及2026-09-11查询日。回执写入忽略的 `.local/s1-test-receipts/`，检出仓库即可离线运行，不依赖原私有材料。
+
+```bash
+make build
+./bin/compliance-agent query --config configs/s1-test.json --input examples/s1-test.json
+```
+
+已验证输出 `REFERENCE_ONLY`、`synthetic_demo`、一条引用及 `tokenUsage.status=not_called`。原本地验证保存在 `.local/s1-01-test/verification.json`；收口阶段的独立提交树、命令、结果与摘要另存 `.local/s1-01-publication/`。只验证测试资料的本地链路，不证明法规现行性或真实模型能力。
+
+原来源调查和 `.local/s1-01/` 冻结证据保留为历史，不覆盖、不把原真实资料 AC 改记 PASS。默认来源过滤及未知核验日期回归继续保留。用户已授权本次 S1-01 提交、推送和 #1 范围回写／关闭；不夹带未提交的 X1 改动，不包含其他工单实施。RAG 未实施，真实模型仍未授权。

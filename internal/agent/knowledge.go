@@ -47,7 +47,7 @@ func validateCorpus(c Corpus, allow bool) error {
 		if s.SHA256 != SHA([]byte(s.Text)) {
 			return problem("SOURCE_DIGEST_MISMATCH", 502)
 		}
-		if !validDate(s.PublishedAt) || !validDate(s.EffectiveFrom) || !validDate(s.ValidityCheckedAt) || (s.EffectiveTo != "" && (!validDate(s.EffectiveTo) || s.EffectiveTo <= s.EffectiveFrom)) {
+		if !validDate(s.PublishedAt) || !validDate(s.EffectiveFrom) || (s.ValidityCheckedAt != "" && !validDate(s.ValidityCheckedAt)) || (s.EffectiveTo != "" && (!validDate(s.EffectiveTo) || s.EffectiveTo <= s.EffectiveFrom)) {
 			return problem("SOURCE_DATE_INVALID", 502)
 		}
 		if s.Status != "in_force" && s.Status != "repealed" && s.Status != "draft" && s.Status != "unknown" {
@@ -56,7 +56,7 @@ func validateCorpus(c Corpus, allow bool) error {
 		if s.Status == "repealed" && s.EffectiveTo == "" {
 			return problem("SOURCE_INTERVAL_REQUIRED", 502)
 		}
-		if s.ValidityCheckedAt < s.PublishedAt {
+		if s.ValidityCheckedAt != "" && s.ValidityCheckedAt < s.PublishedAt {
 			return problem("SOURCE_DATE_INVALID", 502)
 		}
 		for _, k := range s.Keywords {

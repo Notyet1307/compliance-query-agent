@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "cqa.query/v1",
+  "requestId": "s1-single-document-demo",
+  "question": "已运营和新建的二级以上系统，备案期限分别从什么时候起算？三级以上的备案材料要求与二级是否相同？",
+  "topic": "mlps",
+  "asOfDate": "2026-09-11",
+  "jurisdiction": "CN",
+  "industry": "all"
+}

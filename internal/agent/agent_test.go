@@ -250,6 +250,61 @@ func TestHistoricalInterval(t *testing.T) {
 		t.Fatal(out, err)
 	}
 }
+
+func TestSourceCurrencyUnknown(t *testing.T) {
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+	t.Setenv("TEST_LLM_TOKEN", "SYNTHETIC_CURRENCY_TEST_TOKEN")
+	for _, tc := range []struct {
+		name, checkedAt, status, reason string
+		reviewed                        bool
+	}{
+		{"never_checked", "", "in_force", "CURRENCY_UNVERIFIED", true},
+		{"never_reviewed", "", "unknown", "SOURCE_NOT_REVIEWED_OR_NOT_EFFECTIVE", false},
+		{"stale", "2026-02-01", "in_force", "CURRENCY_UNVERIFIED", true},
+		{"malformed", "2026-02-30", "in_force", "", true},
+		{"before_publication", "2025-12-31", "in_force", "", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			corpus := fixture(t)
+			corpus.Sources = corpus.Sources[:1]
+			s := &corpus.Sources[0]
+			s.ValidityCheckedAt, s.Status, s.CuratorReviewed = tc.checkedAt, tc.status, tc.reviewed
+			cfg := config(t)
+			cfg.NetworkApproved = true
+			cfg.Generation = GenerationConfig{Mode: "llm", Endpoint: server.URL, Model: generationModel, TokenEnv: "TEST_LLM_TOKEN"}
+			cfg.Knowledge.CorpusPath = filepath.Join(t.TempDir(), "corpus.json")
+			data, err := json.Marshal(corpus)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(cfg.Knowledge.CorpusPath, data, 0600); err != nil {
+				t.Fatal(err)
+			}
+			e, err := NewEngine(cfg)
+			if tc.reason == "" {
+				requireCode(t, err, "SOURCE_DATE_INVALID")
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			out, _, err := e.Query(context.Background(), request())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if out.Status != "NEEDS_REVIEW" || len(out.Claims) != 0 || len(out.Citations) != 0 ||
+				!strings.Contains(strings.Join(out.ReasonCodes, ","), tc.reason) ||
+				out.TokenUsage == nil || out.TokenUsage.Status != "not_called" || calls.Load() != 0 {
+				t.Fatalf("unverified source escaped review: %+v", out)
+			}
+		})
+	}
+}
 func TestIndustryIsolation(t *testing.T) {
 	e := engine(t)
 	r := request()
