@@ -11,10 +11,9 @@
   },
   "generation": {
     "mode": "llm",
-    "endpoint": "https://llm.example.invalid/v1/chat/completions",
-    "model": "OPERATOR_MUST_SELECT",
-    "tokenEnv": "CQA_LLM_TOKEN",
-    "maxTokens": 2048
+    "endpoint": "https://ai-api-gateway.app.baizhi.cloud/api/openai/chat/completions",
+    "model": "grok-4.6",
+    "tokenEnv": "CQA_LLM_TOKEN"
   },
   "server": {
     "listen": "127.0.0.1:8088",

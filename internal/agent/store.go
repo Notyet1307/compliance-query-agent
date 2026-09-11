@@ -8,12 +8,13 @@ import (
 )
 
 type receipt struct {
-	SchemaVersion string  `json:"schemaVersion"`
-	InputDigest   string  `json:"inputDigest"`
-	ConfigDigest  string  `json:"configDigest"`
-	State         string  `json:"state"`
-	Result        *Result `json:"result,omitempty"`
-	ErrorCode     string  `json:"errorCode,omitempty"`
+	SchemaVersion string      `json:"schemaVersion"`
+	InputDigest   string      `json:"inputDigest"`
+	ConfigDigest  string      `json:"configDigest"`
+	State         string      `json:"state"`
+	Result        *Result     `json:"result,omitempty"`
+	ErrorCode     string      `json:"errorCode,omitempty"`
+	TokenUsage    *TokenUsage `json:"tokenUsage,omitempty"`
 }
 type Store struct{ dir string }
 
@@ -58,7 +59,7 @@ func (s *Store) reserve(id, input, config string) (*Result, error) {
 	if e != nil {
 		return nil, problem("STORE_UNAVAILABLE", 500)
 	}
-	record := receipt{SchemaVersion: "cqa.receipt/v1", InputDigest: input, ConfigDigest: config, State: "reserved"}
+	record := receipt{SchemaVersion: "cqa.receipt/v1", InputDigest: input, ConfigDigest: config, State: "reserved", TokenUsage: &TokenUsage{Status: "unknown"}}
 	e = json.NewEncoder(f).Encode(record)
 	if e == nil {
 		e = f.Sync()
@@ -83,12 +84,13 @@ func (s *Store) syncDir() error {
 	}
 	return nil
 }
-func (s *Store) finish(id, input, config string, r *Result, runErr error) error {
+func (s *Store) finish(id, input, config string, r *Result, usage *TokenUsage, runErr error) error {
 	rec := receipt{SchemaVersion: "cqa.receipt/v1", InputDigest: input, ConfigDigest: config, State: "completed", Result: r}
 	if runErr != nil {
 		rec.State = "blocked"
 		rec.ErrorCode = ErrorCode(runErr)
 		rec.Result = nil
+		rec.TokenUsage = usage
 	}
 	b, e := json.Marshal(rec)
 	if e != nil {

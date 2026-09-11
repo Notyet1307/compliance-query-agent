@@ -78,3 +78,50 @@ API 响应中 200 + `NEEDS_REVIEW`/`INSUFFICIENT_EVIDENCE` 是完整的业务结
 ## 证据与源码绑定
 
 `evidence/bootstrap/source-manifest.json` 绑定交付包文件，`verification.json` 记录实际环境、检查与未验证项。该环境尚无用户 Git commit，所以不编造 SHA。用户初次提交后，OMP 重新执行检查并把证据绑定真实 HEAD/差异。
+
+## S1-02 Token 用量候选
+
+用户在授权实施 #2 后修订方向：后端使用 OMP 的百智云 provider、`grok-4.6`，当前仅记录 Token 消耗。此修订替代旧 Qwen／10 元／20 次／发送前完整输入费用证明，不是把旧 AC 宣称通过；历史候选及其 BLOCKED 证据保留在 `.local/s1-02/`。用户现已授权提交／推送 S1-02、回写并关闭 #2，实际发布版本和完成回执以 GitHub 为准，不包含其他工单实施或真实调用。
+
+候选复用 Go query CLI、HTTP 客户端与回执，仅参考 OMP 已配置的 `baizhi-chat/grok-4.6` 路由；**不启动 OMP 编码代理、不读取其凭据库、不引入 SDK 或多模型注册框架**。固定生产端点为 `https://ai-api-gateway.app.baizhi.cloud/api/openai/chat/completions`，受控模拟允许 literal-loopback HTTP。默认网络仍关闭，X1 仍只能使用合成资料与原文提取。
+
+### 请求与核验边界
+
+HTTP JSON 仅含 model、messages、stream、max_tokens、response_format 五项。采用固定 `grok-4.6`、非流式、`max_tokens:2048` 和 JSON Object；不发送 Qwen 的 enable_thinking、max_completion_tokens，也不发送该 OMP 路由未启用的 reasoning_effort、store 或工具。2,048 是请求参数，不是已证明的完整计费输出上限；截断／工具调用／结构或引用不合格仍拒绝成功。
+
+messages 仅有固定 system 提示词和 user 数据包；user 仅 question、asOfDate、untrustedEvidence，证据仅 id/title/locator/text。不传 requestId、Case/Invocation/digest、地域行业、来源 URL、业务回执或配置。凭据仅由本服务的 `CQA_LLM_TOKEN` 等配置环境引用注入，**不会复制或自动解析 OMP 的 apiKey**。无重定向、环境代理或自动重试。
+
+OMP 配置声明不等于百智云网关认证。模型真实可用性、JSON 参数兼容、返回模型标识、实际处理地域和条款仍待真实运行前核验；不能把百炼北京或 xAI 直连接口的承诺转给代理。依据见 [百智云／Grok 核验记录](research/s1-baizhi-grok.md)。
+
+### 用量记录与失败
+
+每个新结果的 `tokenUsage` 使用以下状态：
+
+| status | 含义 |
+|---|---|
+| `not_called` | 本次未调用生成模型，例如本地无依据、待复核或原文提取 |
+| `reported` | provider 返回非负整数的 prompt、completion、total 三个计数 |
+| `partial` | 只返回部分可识别计数；保留已知项，缺失项不补零或推导 |
+| `unknown` | 用量缺失、格式无效，或请求／响应结果无法确认；没有可宣称的完整用量 |
+
+`inputTokens` 原样对应 `prompt_tokens`，`outputTokens` 对应 `completion_tokens`，`totalTokens` 对应 `total_tokens`；可选 `cachedInputTokens`、`reasoningTokens` 保留对应 details 字段。这些不是 OMP 已归一化并扣除缓存的 `input/output/cacheRead`。总量只采用 provider 的 total，不用输入、输出、缓存、推理重新相加，也不强制 total 等于 input 加 output。xAI 示例的推理计数口径存在差异，不能假定 completion 总包含推理。显式整数 0 与缺失／null 不同；负数、非整数、溢出或结构错误的 usage 整体记 unknown，不阻断本来合格的草稿。
+
+成功结果与用量一起保存至 `storeDir/<requestId>.json` 的 `result.tokenUsage`；拒绝输出但已收到可解析用量时，blocked 回执的顶层 `tokenUsage` 仍保留这些计数。HTTP 错误、超时或无法解析响应记 unknown，不等于未计费。只读取回答 content，不保存 reasoning_content；不保留完整 provider 原始响应／错误或密钥。provider/model 标识为固定请求目标，不是第三方实际路由证明。
+
+发送前仍持久化既有 requestId 预留，失败则零发送。保留的 reserved 回执记 unknown；响应后写盘失败或进程崩溃可能丢失已返回用量，不能将本地记录视为完整账单。成功重放返回同一结果及用量、零新增调用；失败／未知同 ID 返回 `PREVIOUS_EXECUTION_UNRESOLVED`。历史缺少 tokenUsage 的回执不补计数。汇总只能按唯一保留回执统计一次，未知项另列；删除、回滚或更换回执目录会丢失记录及去重保护，本版没有另一套额度账本或防删恢复机制。
+
+### 可操作验证与证据
+
+```bash
+# 不需要真实密钥；构建真实 CLI，使用临时合成配置和本机受控 HTTP 服务。
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off go test -count=1 -v ./internal/agent -run '^TestS1CLI$'
+make verify
+```
+
+场景覆盖草稿／用量、字节一致重放、冲突、恶意输入、已知用量下的输出拒绝、错误／超时的未知用量、缺失计数不阻断后续请求及网络／存储／X1 边界。细分计数检查覆盖缺失、部分、显式零、无效计数和 provider 总量口径；全部是合成协议验证，不是 Grok 实测 Token。
+
+本轮命令、环境、候选摘要与验收映射固定在私有 `.local/s1-02-token-usage/`，不覆盖历史 `.local/s1-02/`。真实模型调用保持 NOT_RUN；经审核真实来源、账号／地域／条款及最终样例运行授权仍是下一入口。仅记录用量不会限制花费，不可把打开 networkApproved 当作获得运行权限。
+
+### 独立发布候选
+
+S1-02 按实施前快照从混合工作树分离，不夹带尚未提交的 X1 原生 adapter／部署文件。发布树与含 X1 的本地工作树分别验证；原生 LLM 情形按“明确拒绝且零发送”验收，不依赖某一未发布实现的错误码。独立树不支持原生模式，本地 X1 的合成／extractive 限制不变。发布阶段的树摘要、命令和结果另存 `.local/s1-02-publication/`；原有混合候选证据不能替代独立提交树验证。

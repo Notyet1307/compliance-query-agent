@@ -18,7 +18,7 @@
 | 五个查询领域、无依据/过期核验/版本重叠/未生效处理 | 已实现并有自动化检查；不是五个真实知识库 |
 | 结果回执持久化、同输入重放、同 ID 不同输入拒绝 | 已实现；绑定本地数据目录，不能跨无共享卷的沙箱保证去重 |
 | 带令牌的本地 HTTP API | 已实现；仅允许 loopback，不是公网服务或多租户服务 |
-| LLM chat-completions 客户端、结果引用校验 | 已实现；仅模拟服务验证，真实模型 BLOCKED |
+| LLM chat-completions 客户端、结果引用校验 | S1-02 本地模拟候选：固定 `baizhi-chat/grok-4.6` 接口、记录 provider Token 用量及未知状态；真实调用 NOT_RUN |
 | OctoBus Connect unary 客户端 | 已实现；仅模拟协议验证，实际知识服务/凭据 BLOCKED |
 | agent-compose 声明、guest 镜像构建材料 | 已提供；实际 parser/build/run BLOCKED |
 | agent-compose 原生 OctoBus capset 路径 | 提案；自动发现与代理调用适配未实现 |
@@ -47,7 +47,7 @@ go run ./cmd/compliance-agent query --config configs/demo.json --input examples/
 
 ## 真实接入前必须理解
 
-`configs/live.example.json` 默认 `networkApproved:false`，启动会拒绝联网。示例域名不是可用服务。不要直接改成 true 后尝试客户数据；先完成来源、权限、费用和传输审批，再配置具体 endpoint/model/secret reference。
+`configs/live.example.json` 默认 `networkApproved:false`；模型端点来自本机 OMP 的 `baizhi-chat/grok-4.6` 配置，不是已通过真实集成的配置，知识端点仍为占位。按用户后续修订，当前只记录 Token 用量，不再实现 10 元／20 次闸门或发送前计数证明；旧 `trialDir` 已删除。缺失用量不记零，`max_tokens:2048` 不作为完整计费上限。真实运行前仍须核验百智云模型可用性、实际处理地域、条款及公开样例范围并单独授权；不沿用百炼北京的价格或留存结论。接口依据与可运行验证见 [S1-02 开发说明](docs/development.md#s1-02-token-用量候选)。
 
 Accord 当前核验基线为 `2668ee62f249d462930bd980c8178ce5f24f7f6e`。该版本 R003 仍限定四个固定 Profile 和合成案例，不提供本启动包可直接使用的动态“注册合规角色”接口。详见 `integrations/accord/README.md`，不能声称填一个角色 JSON 即已集成。
 

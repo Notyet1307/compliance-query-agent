@@ -24,12 +24,16 @@ type KnowledgeConfig struct {
 	Endpoint   string `json:"endpoint,omitempty"`
 	TokenEnv   string `json:"tokenEnv,omitempty"`
 }
+
+const generationProvider = "baizhi-chat"
+const generationModel = "grok-4.6"
+const generationEndpoint = "https://ai-api-gateway.app.baizhi.cloud/api/openai/chat/completions"
+
 type GenerationConfig struct {
-	Mode      string `json:"mode"`
-	Endpoint  string `json:"endpoint,omitempty"`
-	Model     string `json:"model,omitempty"`
-	TokenEnv  string `json:"tokenEnv,omitempty"`
-	MaxTokens int    `json:"maxTokens,omitempty"`
+	Mode     string `json:"mode"`
+	Endpoint string `json:"endpoint,omitempty"`
+	Model    string `json:"model,omitempty"`
+	TokenEnv string `json:"tokenEnv,omitempty"`
 }
 type ServerConfig struct {
 	Listen   string `json:"listen"`
@@ -108,8 +112,14 @@ func (c Config) Validate() error {
 		if e := validateEndpoint(c.Generation.Endpoint); e != nil {
 			return e
 		}
-		if c.Generation.Model == "" || len(c.Generation.Model) > 160 || c.Generation.TokenEnv == "" || c.Generation.MaxTokens < 128 || c.Generation.MaxTokens > 4096 {
+		if c.Generation.Model != generationModel || c.Generation.TokenEnv == "" {
 			return problem("MODEL_CONFIG_INVALID", 500)
+		}
+		u, _ := url.Parse(c.Generation.Endpoint)
+		ip := net.ParseIP(u.Hostname())
+		local := u.Scheme == "http" && ip != nil && ip.IsLoopback()
+		if !local && c.Generation.Endpoint != generationEndpoint {
+			return problem("MODEL_ENDPOINT_NOT_APPROVED", 403)
 		}
 	}
 	return nil

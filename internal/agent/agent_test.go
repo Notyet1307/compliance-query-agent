@@ -105,7 +105,7 @@ func TestNoEvidenceDoesNotCallLLM(t *testing.T) {
 
 type countGenerator struct{ calls atomic.Int32 }
 
-func (g *countGenerator) Generate(ctx context.Context, r Request, s []Source) ([]Claim, error) {
+func (g *countGenerator) Generate(ctx context.Context, r Request, s []Source) ([]Claim, TokenUsage, error) {
 	g.calls.Add(1)
 	time.Sleep(20 * time.Millisecond)
 	return extractiveGenerator{}.Generate(ctx, r, s)
@@ -276,7 +276,7 @@ func TestModelCitationValidation(t *testing.T) {
 }
 func TestNetworkApprovalAndTLS(t *testing.T) {
 	c := config(t)
-	c.Generation = GenerationConfig{Mode: "llm", Endpoint: "https://example.invalid/v1/chat/completions", Model: "test-model", TokenEnv: "TEST_TOKEN", MaxTokens: 2048}
+	c.Generation = GenerationConfig{Mode: "llm", Endpoint: "https://example.invalid/v1/chat/completions", Model: generationModel, TokenEnv: "TEST_TOKEN"}
 	requireCode(t, c.Validate(), "NETWORK_NOT_APPROVED")
 	c.NetworkApproved = true
 	c.Generation.Endpoint = "http://192.0.2.1/v1/chat/completions"
@@ -331,19 +331,19 @@ func TestModelHTTPContract(t *testing.T) {
 		if json.NewDecoder(r.Body).Decode(&body) != nil {
 			t.Fatal("decode")
 		}
-		if body["model"] != "contract-test" || body["stream"] != false {
+		if body["model"] != generationModel || body["stream"] != false || body["max_tokens"] != float64(2048) || body["enable_thinking"] != nil || body["max_completion_tokens"] != nil || body["reasoning_effort"] != nil {
 			t.Error("model mismatch")
 		}
 		raw, _ := json.Marshal(body)
 		if strings.Contains(string(raw), "case-a") || strings.Contains(string(raw), token) || strings.Contains(string(raw), "inv-a") {
 			t.Error("unnecessary identifiers or credential in payload")
 		}
-		fmt.Fprint(w, `{"choices":[{"finish_reason":"stop","message":{"content":"{\"claims\":[{\"text\":\"这是根据样本形成的草稿。\",\"evidenceIds\":[\"demo-mlps-assets\"]}]}"}}]}`)
+		fmt.Fprint(w, syntheticEnvelope(`{"choices":[{"finish_reason":"stop","message":{"content":"{\"claims\":[{\"text\":\"这是根据样本形成的草稿。\",\"evidenceIds\":[\"demo-mlps-assets\"]}]}"}}]}`))
 	}))
 	defer server.Close()
 	c := config(t)
 	c.NetworkApproved = true
-	c.Generation = GenerationConfig{Mode: "llm", Endpoint: server.URL + "/chat/completions", Model: "contract-test", TokenEnv: "TEST_LLM_TOKEN", MaxTokens: 2048}
+	c.Generation = GenerationConfig{Mode: "llm", Endpoint: server.URL + "/chat/completions", Model: generationModel, TokenEnv: "TEST_LLM_TOKEN"}
 	e, err := NewEngine(c)
 	if err != nil {
 		t.Fatal(err)
@@ -367,12 +367,12 @@ func TestModelRejectsForgedCitationAndDoesNotRetry(t *testing.T) {
 	var n atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		n.Add(1)
-		fmt.Fprint(w, `{"choices":[{"finish_reason":"stop","message":{"content":"{\"claims\":[{\"text\":\"bad\",\"evidenceIds\":[\"fake\"]}]}"}}]}`)
+		fmt.Fprint(w, syntheticEnvelope(`{"choices":[{"finish_reason":"stop","message":{"content":"{\"claims\":[{\"text\":\"bad\",\"evidenceIds\":[\"fake\"]}]}"}}]}`))
 	}))
 	defer server.Close()
 	c := config(t)
 	c.NetworkApproved = true
-	c.Generation = GenerationConfig{Mode: "llm", Endpoint: server.URL, Model: "contract", TokenEnv: "TEST_LLM_TOKEN", MaxTokens: 2048}
+	c.Generation = GenerationConfig{Mode: "llm", Endpoint: server.URL, Model: generationModel, TokenEnv: "TEST_LLM_TOKEN"}
 	e, err := NewEngine(c)
 	if err != nil {
 		t.Fatal(err)

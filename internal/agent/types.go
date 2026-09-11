@@ -88,28 +88,42 @@ type Citation struct {
 	Synthetic         bool   `json:"synthetic"`
 }
 
+// TokenUsage preserves provider counters; absent values are unknown, not zero.
+// Cache and reasoning counters are details, not extra tokens to add to TotalTokens.
+type TokenUsage struct {
+	Status            string `json:"status"`
+	Provider          string `json:"provider,omitempty"`
+	Model             string `json:"model,omitempty"`
+	InputTokens       *int64 `json:"inputTokens,omitempty"`
+	OutputTokens      *int64 `json:"outputTokens,omitempty"`
+	TotalTokens       *int64 `json:"totalTokens,omitempty"`
+	CachedInputTokens *int64 `json:"cachedInputTokens,omitempty"`
+	ReasoningTokens   *int64 `json:"reasoningTokens,omitempty"`
+}
+
 type Result struct {
-	SchemaVersion       string     `json:"schemaVersion"`
-	AgentVersion        string     `json:"agentVersion"`
-	RequestID           string     `json:"requestId"`
-	CaseID              string     `json:"caseId,omitempty"`
-	InvocationID        string     `json:"invocationId,omitempty"`
-	ContextDigest       string     `json:"contextDigest,omitempty"`
-	InputDigest         string     `json:"inputDigest"`
-	ConfigDigest        string     `json:"configDigest"`
-	CorpusDigest        string     `json:"corpusDigest"`
-	Status              string     `json:"status"`
-	DataMode            string     `json:"dataMode"`
-	GenerationMode      string     `json:"generationMode"`
-	AsOfDate            string     `json:"asOfDate"`
-	DatasetID           string     `json:"datasetId"`
-	Claims              []Claim    `json:"claims"`
-	Citations           []Citation `json:"citations"`
-	ReasonCodes         []string   `json:"reasonCodes"`
-	Warnings            []string   `json:"warnings"`
-	HumanReviewRequired bool       `json:"humanReviewRequired"`
-	EntailmentVerified  bool       `json:"entailmentVerified"`
-	GeneratedAt         string     `json:"generatedAt"`
+	SchemaVersion       string      `json:"schemaVersion"`
+	AgentVersion        string      `json:"agentVersion"`
+	RequestID           string      `json:"requestId"`
+	CaseID              string      `json:"caseId,omitempty"`
+	InvocationID        string      `json:"invocationId,omitempty"`
+	ContextDigest       string      `json:"contextDigest,omitempty"`
+	InputDigest         string      `json:"inputDigest"`
+	ConfigDigest        string      `json:"configDigest"`
+	CorpusDigest        string      `json:"corpusDigest"`
+	Status              string      `json:"status"`
+	DataMode            string      `json:"dataMode"`
+	GenerationMode      string      `json:"generationMode"`
+	TokenUsage          *TokenUsage `json:"tokenUsage,omitempty"`
+	AsOfDate            string      `json:"asOfDate"`
+	DatasetID           string      `json:"datasetId"`
+	Claims              []Claim     `json:"claims"`
+	Citations           []Citation  `json:"citations"`
+	ReasonCodes         []string    `json:"reasonCodes"`
+	Warnings            []string    `json:"warnings"`
+	HumanReviewRequired bool        `json:"humanReviewRequired"`
+	EntailmentVerified  bool        `json:"entailmentVerified"`
+	GeneratedAt         string      `json:"generatedAt"`
 }
 
 type Error struct {
