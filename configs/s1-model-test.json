@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "cqa.config/v1",
+  "storeDir": "../.local/s1-03-disabled-receipts",
+  "allowSynthetic": true,
+  "networkApproved": false,
+  "timeoutSeconds": 120,
+  "knowledge": {
+    "mode": "local",
+    "corpusPath": "../testdata/s1-test-document.json"
+  },
+  "generation": {
+    "mode": "llm",
+    "endpoint": "https://ai-api-gateway.app.baizhi.cloud/api/openai/chat/completions",
+    "model": "grok-4.6",
+    "tokenEnv": "CQA_LLM_TOKEN"
+  },
+  "server": {
+    "listen": "127.0.0.1:8088",
+    "tokenEnv": "CQA_API_TOKEN"
+  }
+}

@@ -2,7 +2,7 @@
 
 ## 工具链和依赖
 
-建议目标 Go `1.27.1`，来自 2026-09-10 查阅的 Go 官方下载页；`.go-version` 用于声明目标，不会自动安装。`go.mod go 1.23.0` 为语言兼容下限。生成环境现有 Go 为 `1.23.2 linux/amd64`，只对该环境实际测试。目标版本与用户机器运行均 NOT_RUN。
+目标 Go `1.27.1` 由 `.go-version` 声明，不会自动安装；`go.mod go 1.23.0` 是语言兼容下限。Go `1.23.2 linux/amd64` 仅是启动包的历史生成环境；本机 Go `1.27.1 darwin/arm64` 已用于 S1 的独立树验证与 CLI 运行，具体证据见下文。这不替代其他平台、guest 或生产环境验证。
 
 Go 代码只用标准库，没有第三方模块，因此没有 `go.sum`；这不是遗漏锁文件。测试/构建均设置 `GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off`，不会自动下载工具链或模块。验证脚本另需 Python 3；不安装任何 Python 第三方包。
 
@@ -139,4 +139,29 @@ make build
 
 已验证输出 `REFERENCE_ONLY`、`synthetic_demo`、一条引用及 `tokenUsage.status=not_called`。原本地验证保存在 `.local/s1-01-test/verification.json`；收口阶段的独立提交树、命令、结果与摘要另存 `.local/s1-01-publication/`。只验证测试资料的本地链路，不证明法规现行性或真实模型能力。
 
-原来源调查和 `.local/s1-01/` 冻结证据保留为历史，不覆盖、不把原真实资料 AC 改记 PASS。默认来源过滤及未知核验日期回归继续保留。用户已授权本次 S1-01 提交、推送和 #1 范围回写／关闭；不夹带未提交的 X1 改动，不包含其他工单实施。RAG 未实施，真实模型仍未授权。
+原来源调查和 `.local/s1-01/` 冻结证据保留为历史，不覆盖、不把原真实资料 AC 改记 PASS。默认来源过滤及未知核验日期回归继续保留。S1-01 的提交／推送和 #1 范围回写／关闭不包含 X1 改动或其他工单实施；该离线切片不授予真实模型调用权限。RAG 未实施。
+
+## S1-03 单文档模型验证
+
+`configs/s1-model-test.json` 固定本地测试文档、百智云 `grok-4.6` 和凭据环境引用 `CQA_LLM_TOKEN`，默认 `networkApproved:false`，不自动读取 OMP 配置或创建可联网活动配置。`storeDir` 是模板的回执路径占位，禁网状态下不会写入该目录。模板采用已运行候选的 120 秒本地等待上限；它不是费用控制，也不证明此前未知结果的根因已修复。
+
+```bash
+make build
+# 离线无依据检查：预期 INSUFFICIENT_EVIDENCE、not_called，退出0。
+./bin/compliance-agent query --config configs/s1-test.json --input examples/s1-model-insufficient.json
+# 联网闸门检查：预期 NETWORK_NOT_APPROVED，退出1；不读取模型密钥、不调用模型。
+./bin/compliance-agent query --config configs/s1-model-test.json --input examples/s1-test.json
+```
+
+正常／重放问题来自 `examples/s1-test.json`，无依据输入为 `examples/s1-model-insufficient.json`，均固定2026-09-11、CN／all。每轮授权、候选冻结、一次请求边界和停止规则以 [S1-03 规格](specs/s1.md#s1-03-当前范围单文档真实模型验证)为准，不沿用已结束的调用或凭据读取授权；凭据仅通过 `CQA_LLM_TOKEN` 注入。
+
+获准运行使用独立活动配置和回执位置。遇到失败／未知先停止并保留记录，不通过改 ID 或删除旧回执绕过阻断。
+
+### 固定的运行证据
+
+- [首次单次请求回执](https://github.com/Notyet1307/compliance-query-agent/issues/3#issuecomment-5635408377)：30.034 秒后 `UPSTREAM_OUTCOME_UNKNOWN`；保存 blocked／unknown 回执，未重试或重放，计费仍未知。
+- [另获授权后的运行回执与实际草稿](https://github.com/Notyet1307/compliance-query-agent/issues/3#issuecomment-5642521323)：120 秒配置下，28.621 秒得到 `DRAFT_READY`；无依据为 `not_called`，成功重放输出逐字节一致且回执不变。输出保留 `synthetic_demo`、`humanReviewRequired:true`、`entailmentVerified:false`。本次耗时低于原30秒上限，不能把成功归因为延长超时。
+- Provider 报告 input 1197、output 183、total 2629、cached input 512、reasoning 1249。保留 provider 原值，不重算 total、不把缓存／推理或重放再累加；这些数字不补齐前次未知用量，也不提供账单或金额保证。
+- 本地 `.local/s1-03-run-20260912-01/` 保留活动配置、输入、CLI 输出、回执、`answer.json`、运行摘要及独立 `acceptance.json`。运行代码为 `e3e2bdc3f955b602053cfcea79736f9f42e265e5` 对应的已验证独立树，Go 1.27.1 darwin/arm64；不使用混合 X1 工作树编译物。私有文件不是 GitHub 可下载附件。
+
+人工注意：中央在京／统一定级及分支备案条件完整保留在引用原文，但没有在三条生成说明中展开。用户的接受决定与正式任务状态见 [#3](https://github.com/Notyet1307/compliance-query-agent/issues/3)；决定单独绑定草稿，不改写原结果标记或先前“待审核”的运行摘要。只有这份合成测试文档经过本次验证，不代表真实法规、RAG、上传、OctoBus、guest 或 Accord 验收通过。检出或发布这些文件不授予新的真实调用权限。

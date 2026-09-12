@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "cqa.query/v1",
+  "requestId": "s1-model-insufficient-001",
+  "question": "截至查询日期，三级系统审计日志应保留多久？",
+  "topic": "mlps",
+  "asOfDate": "2026-09-11",
+  "jurisdiction": "CN",
+  "industry": "all"
+}
