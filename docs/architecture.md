@@ -28,7 +28,7 @@ flowchart TB
     B --> H[Accord：候选证据与说明 / 人工复核 / 发布]
 ```
 
-当前真实本地路径是：CLI/loopback HTTP → Go Engine → 本地 JSON 资料快照 → 确定性过滤/提取 → 文件回执 → 结构化结果。LLM 和 OctoBus 的 HTTP 客户端已写入，但真实调用尚未验证。Accord 薄适配器仍是提案。
+当前本地路径是：CLI/loopback HTTP → Go Engine → 本地 JSON 资料快照 → 确定性过滤/提取 → 文件回执 → 结构化结果。X1 另已验证 agent-compose command → 原生 gRPC 网关 → 真实 OctoBus 合成 Search → 同一 Engine/Store 的路径。LLM 和 Direct Connect HTTP 客户端的真实调用尚未验证；Accord 薄适配器仍是提案。边界证据见 [X1](specs/x1.md)。
 
 ## 3. 谁拥有什么事实
 
@@ -47,7 +47,7 @@ flowchart TB
 
 业务问题的复杂性在“证据与范围”，不是任意工具规划。选择 Go 单进程/标准库，降低部署和依赖负担；模型接口和数据接口做成明确 Adapter。核心不是 Coding Agent，用 Pi 自由调用 shell 对这种查询没有必要。
 
-agent-compose 的 `run --command` 是上游实际支持的入口。因此建议先在它的 guest 中执行固定 Go 查询命令；compose 中 `provider: pi` 只是 provider 槽位，**该路径不会启动 Pi 的提示词循环，也不会产生外层 Pi + 内层 LLM 双重推理**。后续确需开放式研究再讨论 prompt 模式，不在起点同时堆叠两套 Agent Runtime。
+agent-compose 的 `run --command` 已在 X1 实测；只执行固定 Go 查询，不启动外层 Agent 提示词循环或 LLM。选定发行版仍会初始化并校验 provider：`pi` 缺模型时启动失败，因此无模型的固定 command 使用 `provider: codex`。这不是调用 Codex 模型，也不能把 provider 槽位视为无需核验的装饰字段。开放式 prompt 模式不在本轮范围。
 
 这仍然由 agent-compose 创建/运行沙箱，不是拿普通 Docker Compose 冒充 agent-compose。其命令路径最终会由 guest shell 执行，所以**命令只能由受信适配器生成固定文本**；用户问题通过受限文件/未来批准的数据通道传递，绝不直接字符串拼接到 shell。
 
@@ -59,6 +59,8 @@ agent-compose 的 `run --command` 是上游实际支持的入口。因此建议�
 | `internal/agent/engine.go` | 一次请求的受限流程与结果/回执衔接 |
 | `knowledge.go` | 本地资料加载、关键词检索、领域/行业/日期过滤、重叠版本检测 |
 | `clients.go` | LLM chat-completions、OctoBus Connect unary、引用 ID 验证 |
+| `native.go` | X1 专用固定 grpcurl 子进程、sandbox 凭据内部展开、有界输出和未知结果映射；不回退 Direct |
+| `managed.go` | S2 测试专用的平台代理路由、Linux 持久挂载预检与实际可执行文件摘要；不自建代理 |
 | `store.go` | O_EXCL 请求预留、原子结果写入、完成重放、未知不自动重试 |
 | `http.go` | 带 bearer 的 loopback API、大小限制与固定错误码 |
 | `types.go` / `config.go` | 有界输入输出、严格 JSON、明确网络与配置边界 |
@@ -69,7 +71,9 @@ agent-compose 的 `run --command` 是上游实际支持的入口。因此建议�
 
 数据目录必须为可信操作用户私有，不能放在多人可写目录；文件权限检查不是完整宿主文件系统隔离。回执不提供授权、不取代 Accord 重试政策、不提供防管理员篡改的审计签名。`reserved/blocked` 请求重放只报告未知/待处理，不自动执行。未实现人工恢复命令。
 
-agent-compose 沙箱若每次新建且不共享持久卷，本地去重无法覆盖跨沙箱。M1 必须以 Accord 的 Invocation/Attempt 权威和已验证的运行引用为主；是否挂可信共享回执卷，需要技术试验后确认。不能先承诺跨系统 exactly-once。
+本地去重不能覆盖无共享回执的沙箱边界。X1 实测同一 sandbox 的 stop/resume 更换容器并丢失 `/tmp` 回执，新 sandbox 也会再次 Search；不能仅凭 sandbox ID 相同自动重试。M1 必须以 Accord 的 Invocation/Attempt 权威和已验证的运行引用为主；可信持久卷与恢复策略另行批准，不承诺跨系统 exactly-once。
+
+S2-02 离线实现新增 `octobus_native_s2` 与显式 `managed` 配置，保留旧 X1 的 extractive 限制。临时 OpenAI sandbox 地址／凭据只交给运行客户端，稳定配置仍完整绑定，并额外绑定实际可执行文件 SHA256；项目／角色来自受信配置，不虚构平台代理注入的身份环境变量。Linux 内核挂载表必须显示预期目录的独立可写挂载，目录须为 0700 且无符号链接；预留／完成时检查目录身份未被替换。新完成回执带结果摘要，受管路径拒绝缺失或损坏摘要；摘要不是管理员篡改防护。此实现及模拟不能证明正确的宿主 backing、实际重建持久性或跨系统 exactly-once。
 
 ## 7. 查询质量边界
 

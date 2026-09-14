@@ -66,21 +66,30 @@ type octobusKnowledge struct {
 	client          *http.Client
 }
 
+type knowledgeQuery struct {
+	SchemaVersion string `json:"schemaVersion"`
+	Query         string `json:"query"`
+	Topic         string `json:"topic"`
+	AsOfDate      string `json:"asOfDate"`
+	Jurisdiction  string `json:"jurisdiction"`
+	Industry      string `json:"industry"`
+	Limit         int    `json:"limit"`
+}
+
+func queryForKnowledge(r Request) knowledgeQuery {
+	// Case/Invocation identifiers are unnecessary for retrieval.
+	return knowledgeQuery{"cqa.search/v1", r.Question, r.Topic, r.AsOfDate, r.Jurisdiction, r.Industry, 100}
+}
+
 func (o octobusKnowledge) Search(ctx context.Context, r Request) (Corpus, error) {
-	// Deliberately exclude Case/Invocation identifiers. They are unnecessary for retrieval.
-	body := struct {
-		SchemaVersion string `json:"schemaVersion"`
-		Query         string `json:"query"`
-		Topic         string `json:"topic"`
-		AsOfDate      string `json:"asOfDate"`
-		Jurisdiction  string `json:"jurisdiction"`
-		Industry      string `json:"industry"`
-		Limit         int    `json:"limit"`
-	}{"cqa.search/v1", r.Question, r.Topic, r.AsOfDate, r.Jurisdiction, r.Industry, 100}
-	b, e := post(ctx, o.client, o.endpoint, o.token, body, true)
+	b, e := post(ctx, o.client, o.endpoint, o.token, queryForKnowledge(r), true)
 	if e != nil {
 		return Corpus{}, e
 	}
+	return decodeKnowledgeResponse(b)
+}
+
+func decodeKnowledgeResponse(b []byte) (Corpus, error) {
 	// Search must return complete relevant candidates, not silently truncate versions.
 	var wire struct {
 		Corpus    Corpus `json:"corpus"`

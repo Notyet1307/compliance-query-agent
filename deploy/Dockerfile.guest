@@ -4,6 +4,9 @@ ARG BASE_GUEST_IMAGE
 FROM ${BASE_GUEST_IMAGE}
 COPY --chmod=0555 bin/compliance-agent-guest /opt/cqa/compliance-agent
 COPY configs/guest-demo.json /opt/cqa/configs/guest-demo.json
+COPY configs/guest-native-x1.json /opt/cqa/configs/guest-native-x1.json
+COPY configs/s2-managed-test.json /opt/cqa/configs/s2-managed-test.json
 COPY testdata/demo-corpus.json /opt/cqa/testdata/demo-corpus.json
 COPY examples/mlps.json /opt/cqa/examples/mlps.json
-# This image is synthetic/offline only. Do not bake credentials or real corpora.
+COPY protocol/compliance.proto /opt/cqa/protocol/compliance.proto
+# Synthetic data only. Native X1 requires separate execution approval; no credentials are baked in.

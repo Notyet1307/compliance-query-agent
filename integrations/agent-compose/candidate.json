@@ -1,0 +1,57 @@
+{
+  "upstreamRepository": "https://github.com/chaitin/agent-compose",
+  "upstreamCommit": "043b763f05304c3a55f1bd3f4eb8504a591aa4ba",
+  "licenseFile": "LICENSE.txt",
+  "licenseScope": "Preserved upstream AGPL-3.0 text for these agent-compose-derived patches only; no project-wide CQA license selection or re-licensing.",
+  "modificationsDate": "2026-09-14",
+  "patchesInOrder": [
+    {
+      "path": "01-runtime-forwarding-observations.patch",
+      "sha256": "7041443a550860fc25b4f758106714ad1b561de3a337b2c8afb610d33e548be8"
+    },
+    {
+      "path": "02-command-run-attribution.patch",
+      "sha256": "9ff46896af96e201b6579c3dbe127c035be91b97c5d8f2967e1d41287bd9356f"
+    },
+    {
+      "path": "03-preserve-explicit-model.patch",
+      "sha256": "7a6da1473add0da56e384ba01fb40b65f8cc0118331e9e6ca6b2e02fa55098f3"
+    }
+  ],
+  "changes": [
+    "Disable environment proxies/HTTP redirects and add bounded runtime forwarding observations and control-auth coverage.",
+    "Bind command and attached-command facade tokens to actual native run, correct environment precedence, and retain token on unconfirmed termination.",
+    "Preserve canonical OpenCode model when optional OPENCODE_MODEL override is absent/blank; preserve nonempty override precedence."
+  ],
+  "sourceSnapshotSHA256": "3c39b4a91a52e03ebf037b32be9be4ae7abfaf7adeda22e8894a4628165f831a",
+  "actualLinuxArm64BinarySHA256": "8cd19f27f0d6a8ba0dc6158ad50737b3e779fdd6c1e1fc11bb773a21b3ebc447",
+  "binaryIncluded": false,
+  "generatedBuildInputs": {
+    "proto/agentcompose/v2/agentcompose.pb.go": "dd4a1739528faf2a18c5bead2982a2b6014ad98a1e1d9c44c121dc9bb1071bd6",
+    "proto/agentcompose/v2/agentcomposev2connect/agentcompose.connect.go": "b1c4a186285060f63af0b5df0e7c4fc464a20b9271ef3df3d4cb0aa1e5ed9306",
+    "proto/health/v1/health.pb.go": "f65cd57573119cea8cdec48df2f060f4d4986a5608cc4e01b719411e875dffb4",
+    "proto/health/v1/healthv1connect/health.connect.go": "545349c00b73acf15fffa7d6c2f4fb25efe4642318dc783f377aa4af2be78a5b"
+  },
+  "generatedInputsBoundary": "Two pb.go files absent in the upstream archive were generated. The two existing Connect outputs were reproduced byte-identically. Protobuf schemas, go.mod and go.sum are unchanged. Generated build inputs are in the source capsule, not the authored patch.",
+  "patchCheck": {
+    "status": "PATCH_CHAIN_PASS_GENERATED_INPUTS_NOT_REGENERATED",
+    "upstreamCommit": "043b763f05304c3a55f1bd3f4eb8504a591aa4ba",
+    "upstreamArchiveSHA256": "bd70798481008df3354103f7f7693364bfd6bf2cee09efd66710d911b4df8eb6",
+    "sourceFilesMatched": 1395,
+    "regenerationRequiredFiles": [
+      "proto/agentcompose/v2/agentcompose.pb.go",
+      "proto/health/v1/health.pb.go"
+    ],
+    "expectedGeneratedInputs": {
+      "proto/agentcompose/v2/agentcompose.pb.go": "dd4a1739528faf2a18c5bead2982a2b6014ad98a1e1d9c44c121dc9bb1071bd6",
+      "proto/agentcompose/v2/agentcomposev2connect/agentcompose.connect.go": "b1c4a186285060f63af0b5df0e7c4fc464a20b9271ef3df3d4cb0aa1e5ed9306",
+      "proto/health/v1/health.pb.go": "f65cd57573119cea8cdec48df2f060f4d4986a5608cc4e01b719411e875dffb4",
+      "proto/health/v1/healthv1connect/health.connect.go": "545349c00b73acf15fffa7d6c2f4fb25efe4642318dc783f377aa4af2be78a5b"
+    },
+    "candidateSourceSnapshotSHA256": "3c39b4a91a52e03ebf037b32be9be4ae7abfaf7adeda22e8894a4628165f831a"
+  },
+  "toolchain": "Go 1.27.1; CGO_ENABLED=0 GOOS=linux GOARCH=arm64; build -trimpath -buildvcs=false ./cmd/agent-compose after upstream protobuf generation. Dependencies/generation tools are not vendored or installed by CQA.",
+  "verificationScope": "Patch chain was applied to exact pinned upstream archive during publication. This is not a new platform build or runtime qualification. Prior exact candidate build and later runtime-4 evidence remain separately bound.",
+  "schedulerCaveat": "TestSchedulerLLMAsyncRejectsFanOutBeyondOutstandingLimit fails on parent and candidate; full affected race command exit 1; scheduler disabled in accepted query run.",
+  "upstreamMerged": false
+}

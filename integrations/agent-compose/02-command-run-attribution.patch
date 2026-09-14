@@ -1,0 +1,886 @@
+--- a/docs/design/llm_provider_catalog_design.md
++++ b/docs/design/llm_provider_catalog_design.md
+@@ -252,6 +252,16 @@
+ 
+ 模型级限制优先于 daemon 全局的 `LLM_MAX_OUTPUT_TOKENS` fallback。
+ 
++### 原生命令运行的凭据归属
++
++普通命令 run 与附着命令 run 都从已选定的不可变项目 revision 重建 startup／selected facade，签发 `source=agent`、绑定原生 `RunID` 的独立令牌。不能用调用方环境、Header 或会话级令牌替代 run 归属；复用 sandbox 时不依赖未持久化的 `RuntimeEnvItems`。
++
++托管 facade 环境优先于命令请求中的同名值。普通命令通过外层 exec 环境继承令牌，并剔除子进程请求中的覆盖值，不把新令牌写入 `command-request.json`。附着命令在顶层及 `Command.Env` 使用同一托管环境。
++
++准备失败和确认终止后只删除本次签发的 token hashes，不撤销同 sandbox 的其他令牌。附着路径取消后等待 driver 的终止结果；`CloseSend` 或字符串错误帧本身不是终止证明。driver 返回 `ErrExecTerminationUnconfirmed` 时保留本次令牌，不伪称已回收。未配置 LLM 的普通命令仍可执行，已配置但准备失败时不退回会话级凭据。
++
++提供者配置文件仍沿用现有 helper 写入共享 sandbox home，文件引用环境变量而非令牌字面值；这不提供每 run 的配置文件或进程隔离。
++
+ ### Runtime 转发保护与观测
+ 
+ Runtime facade 的默认客户端及 daemon 使用的 `NewRuntimeLLMHTTPClient` 不读取环境代理、不跟随 HTTP 重定向；保留 TLS 证书验证、响应头超时及流式响应无总时限的既有行为。重定向响应原样返回，不向 `Location` 再发送请求。这是有意的兼容性变化：依赖 `HTTP_PROXY` / `HTTPS_PROXY` 的上游配置不再适用于此客户端。可信代码注入的自定义 `HTTPDoer` 必须自行遵守同一保护及 `httptrace` 契约。
+--- a/pkg/llms/runtimefacade/command_config_test.go
++++ b/pkg/llms/runtimefacade/command_config_test.go
+@@ -1,4 +1,4 @@
+-package runtimefacade
++package runtimefacade_test
+ 
+ import (
+ 	"context"
+@@ -13,6 +13,7 @@
+ 	driverpkg "github.com/chaitin/agent-compose/pkg/driver"
+ 	"github.com/chaitin/agent-compose/pkg/internal/testutil"
+ 	"github.com/chaitin/agent-compose/pkg/llms"
++	"github.com/chaitin/agent-compose/pkg/llms/runtimefacade"
+ 	domain "github.com/chaitin/agent-compose/pkg/model"
+ 	"github.com/chaitin/agent-compose/pkg/storage/configstore"
+ )
+@@ -30,7 +31,7 @@
+ 		WorkspacePath: filepath.Join(root, "sandboxes", "sandbox-command-facades", "workspace"),
+ 	}}
+ 
+-	result, err := EnsureSessionCommandFacadeConfig(ctx, CommandFacadeConfigRequest{Config: config, Store: store, Session: session, Agent: "codex", Model: "openai-model", Source: TokenSourceSchedulerCommand, RunID: "run-command"})
++	result, err := runtimefacade.EnsureSessionCommandFacadeConfig(ctx, runtimefacade.CommandFacadeConfigRequest{Config: config, Store: store, Session: session, Agent: "codex", Model: "openai-model", Source: runtimefacade.TokenSourceSchedulerCommand, RunID: "run-command"})
+ 	if err != nil {
+ 		t.Fatalf("EnsureSessionCommandFacadeConfig returned error: %v", err)
+ 	}
+@@ -73,7 +74,7 @@
+ 		WorkspacePath: filepath.Join(blockedSandboxDir, "workspace"),
+ 	}}
+ 
+-	result, err := EnsureSessionCommandFacadeConfig(ctx, CommandFacadeConfigRequest{Config: config, Store: store, Session: session, Agent: "codex", Model: "openai-model", Source: TokenSourceSchedulerCommand, RunID: "run-partial-failure"})
++	result, err := runtimefacade.EnsureSessionCommandFacadeConfig(ctx, runtimefacade.CommandFacadeConfigRequest{Config: config, Store: store, Session: session, Agent: "codex", Model: "openai-model", Source: runtimefacade.TokenSourceSchedulerCommand, RunID: "run-partial-failure"})
+ 	if err == nil || !strings.Contains(err.Error(), "codex config") {
+ 		t.Fatalf("EnsureSessionCommandFacadeConfig error = %v, want Codex config write failure", err)
+ 	}
+@@ -134,7 +135,7 @@
+ func countCommandFacadeTokens(t *testing.T, ctx context.Context, store *configstore.ConfigStore, runID string) int {
+ 	t.Helper()
+ 	var count int
+-	if err := store.DB().QueryRowContext(ctx, `SELECT COUNT(1) FROM llm_facade_token WHERE source = ? AND run_id = ?`, TokenSourceSchedulerCommand, runID).Scan(&count); err != nil {
++	if err := store.DB().QueryRowContext(ctx, `SELECT COUNT(1) FROM llm_facade_token WHERE source = ? AND run_id = ?`, runtimefacade.TokenSourceSchedulerCommand, runID).Scan(&count); err != nil {
+ 		t.Fatalf("count command facade tokens: %v", err)
+ 	}
+ 	return count
+--- a/pkg/llms/runtimefacade/config_protocol_test.go
++++ b/pkg/llms/runtimefacade/config_protocol_test.go
+@@ -1,4 +1,4 @@
+-package runtimefacade
++package runtimefacade_test
+ 
+ import (
+ 	"context"
+@@ -11,6 +11,7 @@
+ 	driverpkg "github.com/chaitin/agent-compose/pkg/driver"
+ 	"github.com/chaitin/agent-compose/pkg/internal/testutil"
+ 	"github.com/chaitin/agent-compose/pkg/llms"
++	"github.com/chaitin/agent-compose/pkg/llms/runtimefacade"
+ 	domain "github.com/chaitin/agent-compose/pkg/model"
+ )
+ 
+@@ -44,7 +45,7 @@
+ 		{Name: "LLM_MODEL", Value: "gpt-chat"},
+ 	})
+ 
+-	runtimeConfig, err := EnsureSessionAgentRuntimeConfig(ctx, SessionFacadeConfigRequest{Config: config, Store: store, Session: session, Agent: "opencode", Model: "openai/gpt-chat", Source: TokenSourceAgent, RunID: "run-chat"})
++	runtimeConfig, err := runtimefacade.EnsureSessionAgentRuntimeConfig(ctx, runtimefacade.SessionFacadeConfigRequest{Config: config, Store: store, Session: session, Agent: "opencode", Model: "openai/gpt-chat", Source: runtimefacade.TokenSourceAgent, RunID: "run-chat"})
+ 	if err != nil {
+ 		t.Fatalf("EnsureSessionAgentRuntimeConfig returned error: %v", err)
+ 	}
+@@ -122,7 +123,7 @@
+ 
+ 	assertTarget := func(testSession *domain.Sandbox, reference, model, protocol, providerID, runID string) {
+ 		t.Helper()
+-		runtimeConfig, err := EnsureSessionAgentRuntimeConfig(ctx, SessionFacadeConfigRequest{Config: config, Store: store, Session: testSession, Agent: "opencode", Model: reference, Source: TokenSourceAgent, RunID: runID})
++		runtimeConfig, err := runtimefacade.EnsureSessionAgentRuntimeConfig(ctx, runtimefacade.SessionFacadeConfigRequest{Config: config, Store: store, Session: testSession, Agent: "opencode", Model: reference, Source: runtimefacade.TokenSourceAgent, RunID: runID})
+ 		if err != nil {
+ 			t.Fatalf("EnsureSessionAgentRuntimeConfig(%q) returned error: %v", reference, err)
+ 		}
+--- a/pkg/llms/runtimefacade/config_test.go
++++ b/pkg/llms/runtimefacade/config_test.go
+@@ -1,4 +1,4 @@
+-package runtimefacade
++package runtimefacade_test
+ 
+ import (
+ 	"context"
+@@ -16,6 +16,7 @@
+ 	"github.com/chaitin/agent-compose/pkg/execution"
+ 	"github.com/chaitin/agent-compose/pkg/internal/testutil"
+ 	"github.com/chaitin/agent-compose/pkg/llms"
++	"github.com/chaitin/agent-compose/pkg/llms/runtimefacade"
+ 	domain "github.com/chaitin/agent-compose/pkg/model"
+ )
+ 
+@@ -52,7 +53,7 @@
+ 		},
+ 	}
+ 
+-	env, err := EnsureSessionLLMFacadeConfig(ctx, SessionFacadeConfigRequest{Config: config, Store: store, Session: session, Agent: "codex", Model: "", Source: "test", RunID: "run-1"})
++	env, err := runtimefacade.EnsureSessionLLMFacadeConfig(ctx, runtimefacade.SessionFacadeConfigRequest{Config: config, Store: store, Session: session, Agent: "codex", Model: "", Source: "test", RunID: "run-1"})
+ 	if err != nil {
+ 		t.Fatalf("EnsureSessionLLMFacadeConfig returned error: %v", err)
+ 	}
+@@ -130,7 +131,7 @@
+ 	}
+ 
+ 	session := &domain.Sandbox{Summary: domain.SandboxSummary{ID: "sandbox-startup-facades", Driver: driverpkg.RuntimeDriverDocker}}
+-	env, err := EnsureSessionStartupFacadeConfig(ctx, SessionFacadeConfigRequest{Config: config, Store: store, Session: session, Source: TokenSourceAgent, RunID: ""})
++	env, err := runtimefacade.EnsureSessionStartupFacadeConfig(ctx, runtimefacade.SessionFacadeConfigRequest{Config: config, Store: store, Session: session, Source: runtimefacade.TokenSourceAgent, RunID: ""})
+ 	if err != nil {
+ 		t.Fatalf("EnsureSessionStartupFacadeConfig returned error: %v", err)
+ 	}
+@@ -187,7 +188,7 @@
+ 		t.Fatalf("save Anthropic provider: %v", err)
+ 	}
+ 
+-	env, err := EnsureSessionStartupFacadeConfig(ctx, SessionFacadeConfigRequest{Config: config, Store: store, Session: &domain.Sandbox{Summary: domain.SandboxSummary{ID: "sandbox-anthropic-only"}}, Source: TokenSourceAgent, RunID: ""})
++	env, err := runtimefacade.EnsureSessionStartupFacadeConfig(ctx, runtimefacade.SessionFacadeConfigRequest{Config: config, Store: store, Session: &domain.Sandbox{Summary: domain.SandboxSummary{ID: "sandbox-anthropic-only"}}, Source: runtimefacade.TokenSourceAgent, RunID: ""})
+ 	if err != nil {
+ 		t.Fatalf("EnsureSessionStartupFacadeConfig returned error: %v", err)
+ 	}
+@@ -224,7 +225,7 @@
+ 		WorkspacePath: filepath.Join(root, "sandboxes", "sandbox-runtimefacade-unreachable", "workspace"),
+ 	}}
+ 
+-	env, err := EnsureSessionLLMFacadeConfig(ctx, SessionFacadeConfigRequest{Config: config, Store: store, Session: session, Agent: "codex", Model: "", Source: "test", RunID: "run-1"})
++	env, err := runtimefacade.EnsureSessionLLMFacadeConfig(ctx, runtimefacade.SessionFacadeConfigRequest{Config: config, Store: store, Session: session, Agent: "codex", Model: "", Source: "test", RunID: "run-1"})
+ 	if !errors.Is(err, domain.ErrFailedPrecondition) {
+ 		t.Fatalf("EnsureSessionLLMFacadeConfig error = %v, want failed precondition", err)
+ 	}
+@@ -256,7 +257,7 @@
+ 	}
+ 	session := &domain.Sandbox{Summary: domain.SandboxSummary{ID: "sandbox-runtimefacade-unmanaged", Driver: driverpkg.RuntimeDriverDocker}}
+ 
+-	env, err := EnsureSessionLLMFacadeConfig(ctx, SessionFacadeConfigRequest{Config: config, Store: store, Session: session, Agent: "codex", Model: "", Source: "test", RunID: "run-1"})
++	env, err := runtimefacade.EnsureSessionLLMFacadeConfig(ctx, runtimefacade.SessionFacadeConfigRequest{Config: config, Store: store, Session: session, Agent: "codex", Model: "", Source: "test", RunID: "run-1"})
+ 	if err != nil || len(env) != 0 {
+ 		t.Fatalf("EnsureSessionLLMFacadeConfig env = %#v, error = %v; want unmanaged no-op", env, err)
+ 	}
+@@ -296,7 +297,7 @@
+ 			{Name: "LLM_MODEL", Value: "gpt-test"},
+ 		},
+ 	}
+-	claude, err := EnsureSessionAgentRuntimeConfig(ctx, SessionFacadeConfigRequest{Config: config, Store: store, Session: session, Agent: "claude", Model: "", Source: "agent", RunID: "run-claude"})
++	claude, err := runtimefacade.EnsureSessionAgentRuntimeConfig(ctx, runtimefacade.SessionFacadeConfigRequest{Config: config, Store: store, Session: session, Agent: "claude", Model: "", Source: "agent", RunID: "run-claude"})
+ 	if err != nil {
+ 		t.Fatalf("EnsureSessionAgentRuntimeConfig claude returned error: %v", err)
+ 	}
+@@ -313,7 +314,7 @@
+ 		t.Fatalf("claude emitted deprecated session token env")
+ 	}
+ 
+-	openAI, err := EnsureSessionAgentRuntimeConfig(ctx, SessionFacadeConfigRequest{Config: config, Store: store, Session: session, Agent: "opencode", Model: "openai/gpt-test", Source: TokenSourceAgent, RunID: "run-openai"})
++	openAI, err := runtimefacade.EnsureSessionAgentRuntimeConfig(ctx, runtimefacade.SessionFacadeConfigRequest{Config: config, Store: store, Session: session, Agent: "opencode", Model: "openai/gpt-test", Source: runtimefacade.TokenSourceAgent, RunID: "run-openai"})
+ 	if err != nil {
+ 		t.Fatalf("EnsureSessionAgentRuntimeConfig opencode openai returned error: %v", err)
+ 	}
+@@ -321,7 +322,7 @@
+ 		t.Fatalf("opencode openai env = %#v", openAI.Env)
+ 	}
+ 
+-	anthropic, err := EnsureSessionAgentRuntimeConfig(ctx, SessionFacadeConfigRequest{Config: config, Store: store, Session: session, Agent: "opencode", Model: "anthropic/claude-test", Source: TokenSourceAgent, RunID: "run-anthropic"})
++	anthropic, err := runtimefacade.EnsureSessionAgentRuntimeConfig(ctx, runtimefacade.SessionFacadeConfigRequest{Config: config, Store: store, Session: session, Agent: "opencode", Model: "anthropic/claude-test", Source: runtimefacade.TokenSourceAgent, RunID: "run-anthropic"})
+ 	if err != nil {
+ 		t.Fatalf("EnsureSessionAgentRuntimeConfig opencode anthropic returned error: %v", err)
+ 	}
+@@ -329,7 +330,7 @@
+ 		t.Fatalf("opencode anthropic env = %#v", anthropic.Env)
+ 	}
+ 
+-	pi, err := EnsureSessionAgentRuntimeConfig(ctx, SessionFacadeConfigRequest{Config: config, Store: store, Session: session, Agent: "pi", Model: "openai/gpt-test", Source: TokenSourceAgent, RunID: "run-pi"})
++	pi, err := runtimefacade.EnsureSessionAgentRuntimeConfig(ctx, runtimefacade.SessionFacadeConfigRequest{Config: config, Store: store, Session: session, Agent: "pi", Model: "openai/gpt-test", Source: runtimefacade.TokenSourceAgent, RunID: "run-pi"})
+ 	if err != nil {
+ 		t.Fatalf("EnsureSessionAgentRuntimeConfig pi returned error: %v", err)
+ 	}
+@@ -354,7 +355,7 @@
+ 		t.Fatalf("pi token = %#v, err=%v", token, err)
+ 	}
+ 
+-	custom, err := EnsureSessionAgentRuntimeConfig(ctx, SessionFacadeConfigRequest{Config: config, Store: store, Session: session, Agent: "opencode", Model: "custom/gpt-custom", Source: TokenSourceSchedulerCommand, RunID: "run-custom"})
++	custom, err := runtimefacade.EnsureSessionAgentRuntimeConfig(ctx, runtimefacade.SessionFacadeConfigRequest{Config: config, Store: store, Session: session, Agent: "opencode", Model: "custom/gpt-custom", Source: runtimefacade.TokenSourceSchedulerCommand, RunID: "run-custom"})
+ 	if err != nil {
+ 		t.Fatalf("EnsureSessionAgentRuntimeConfig opencode custom returned error: %v", err)
+ 	}
+@@ -362,24 +363,21 @@
+ 		t.Fatalf("opencode custom env = %#v", custom.Env)
+ 	}
+ 
+-	noop, err := EnsureSessionAgentRuntimeConfig(ctx, SessionFacadeConfigRequest{Config: config, Store: store, Session: session, Agent: "opencode", Model: "opencode/local", Source: "", RunID: ""})
++	noop, err := runtimefacade.EnsureSessionAgentRuntimeConfig(ctx, runtimefacade.SessionFacadeConfigRequest{Config: config, Store: store, Session: session, Agent: "opencode", Model: "opencode/local", Source: "", RunID: ""})
+ 	if err != nil {
+ 		t.Fatalf("EnsureSessionAgentRuntimeConfig opencode local returned error: %v", err)
+ 	}
+ 	if len(noop.Env) != 0 {
+ 		t.Fatalf("opencode local env = %#v", noop.Env)
+ 	}
+-	if _, err := EnsureSessionAgentRuntimeConfig(ctx, SessionFacadeConfigRequest{Config: config, Store: store, Session: session, Agent: "opencode", Model: "bad-model", Source: "", RunID: ""}); err == nil {
++	if _, err := runtimefacade.EnsureSessionAgentRuntimeConfig(ctx, runtimefacade.SessionFacadeConfigRequest{Config: config, Store: store, Session: session, Agent: "opencode", Model: "bad-model", Source: "", RunID: ""}); err == nil {
+ 		t.Fatalf("expected invalid opencode model error")
+ 	}
+-	if env, err := EnsureSessionLLMFacadeConfig(ctx, SessionFacadeConfigRequest{Config: nil, Store: store, Session: session, Agent: "codex", Model: "", Source: "", RunID: ""}); err != nil || env != nil {
++	if env, err := runtimefacade.EnsureSessionLLMFacadeConfig(ctx, runtimefacade.SessionFacadeConfigRequest{Config: nil, Store: store, Session: session, Agent: "codex", Model: "", Source: "", RunID: ""}); err != nil || env != nil {
+ 		t.Fatalf("nil config env=%#v err=%v", env, err)
+ 	}
+-	if !HasAnthropicProviderKey(ctx, config, store) {
++	if !runtimefacade.HasAnthropicProviderKey(ctx, config, store) {
+ 		t.Fatalf("expected anthropic provider key")
+-	}
+-	if got := firstNonEmpty(" \t", "value"); got != "value" {
+-		t.Fatalf("firstNonEmpty = %q, want value", got)
+ 	}
+ }
+ 
+@@ -406,7 +404,7 @@
+ 	}
+ 	session := &domain.Sandbox{Summary: domain.SandboxSummary{ID: "sandbox-claude-compat", Driver: driverpkg.RuntimeDriverDocker}}
+ 
+-	runtimeConfig, err := EnsureSessionAgentRuntimeConfig(ctx, SessionFacadeConfigRequest{Config: config, Store: store, Session: session, Agent: "claude", Model: "", Source: "test", RunID: "run-compat"})
++	runtimeConfig, err := runtimefacade.EnsureSessionAgentRuntimeConfig(ctx, runtimefacade.SessionFacadeConfigRequest{Config: config, Store: store, Session: session, Agent: "claude", Model: "", Source: "test", RunID: "run-compat"})
+ 	if err != nil {
+ 		t.Fatalf("EnsureSessionAgentRuntimeConfig returned error: %v", err)
+ 	}
+--- a/pkg/llms/runtimefacade/coverage_shape_workflows_test.go
++++ /dev/null
+@@ -1,12 +0,0 @@
+-package runtimefacade
+-
+-import "testing"
+-
+-func TestIntegrationRuntimeFacadeConfigWorkflow(t *testing.T) {
+-	TestEnsureSessionLLMFacadeConfigCreatesCodexEnvAndToken(t)
+-	TestEnsureSessionAgentRuntimeConfigClaudeAndOpenCodeWorkflows(t)
+-}
+-
+-func TestE2ERuntimeFacadeConfigWorkflow(t *testing.T) {
+-	TestIntegrationRuntimeFacadeConfigWorkflow(t)
+-}
+--- a/pkg/llms/runtimefacade/provider_environment_e2e_test.go
++++ b/pkg/llms/runtimefacade/provider_environment_e2e_test.go
+@@ -1,4 +1,4 @@
+-package runtimefacade
++package runtimefacade_test
+ 
+ import (
+ 	"context"
+@@ -10,6 +10,7 @@
+ 	driverpkg "github.com/chaitin/agent-compose/pkg/driver"
+ 	"github.com/chaitin/agent-compose/pkg/internal/testutil"
+ 	"github.com/chaitin/agent-compose/pkg/llms"
++	"github.com/chaitin/agent-compose/pkg/llms/runtimefacade"
+ 	domain "github.com/chaitin/agent-compose/pkg/model"
+ )
+ 
+@@ -218,7 +219,7 @@
+ type claudeFacadeModelCheck struct {
+ 	Ctx       context.Context
+ 	Config    *appconfig.Config
+-	Store     FacadeStore
++	Store     runtimefacade.FacadeStore
+ 	Sandbox   *domain.Sandbox
+ 	RunID     string
+ 	WantModel string
+@@ -227,7 +228,7 @@
+ func requireClaudeFacadeModel(t *testing.T, check claudeFacadeModelCheck) string {
+ 	t.Helper()
+ 	ctx, config, store, sandbox, runID, wantModel := check.Ctx, check.Config, check.Store, check.Sandbox, check.RunID, check.WantModel
+-	runtimeConfig, err := EnsureSessionAgentRuntimeConfig(ctx, SessionFacadeConfigRequest{Config: config, Store: store, Session: sandbox, Agent: "claude", Model: "", Source: TokenSourceAgent, RunID: runID})
++	runtimeConfig, err := runtimefacade.EnsureSessionAgentRuntimeConfig(ctx, runtimefacade.SessionFacadeConfigRequest{Config: config, Store: store, Session: sandbox, Agent: "claude", Model: "", Source: runtimefacade.TokenSourceAgent, RunID: runID})
+ 	if err != nil {
+ 		t.Fatalf("configure Claude facade: %v", err)
+ 	}
+--- a/pkg/runs/command_execution.go
++++ b/pkg/runs/command_execution.go
+@@ -11,6 +11,7 @@
+ 
+ 	appconfig "github.com/chaitin/agent-compose/pkg/config"
+ 	"github.com/chaitin/agent-compose/pkg/execution"
++	"github.com/chaitin/agent-compose/pkg/llms"
+ 	domain "github.com/chaitin/agent-compose/pkg/model"
+ 	agentcomposev2 "github.com/chaitin/agent-compose/proto/agentcompose/v2"
+ )
+@@ -29,11 +30,11 @@
+ 	Sink        *StreamSink
+ }
+ 
+-func (c *Controller) executeProjectRunCommand(ctx context.Context, exec projectRunCommandExecution) (TransitionRequest, error) {
++func (c *Controller) executeProjectRunCommand(ctx context.Context, exec projectRunCommandExecution) (transition TransitionRequest, returnErr error) {
+ 	run, sandbox, req, commandText, sink := exec.Run, exec.Sandbox, exec.Request, exec.CommandText, exec.Sink
+ 	artifactsDir := projectRunCommandArtifactsDir(run, sandbox)
+ 	logsPath := filepath.Join(artifactsDir, "transcript.txt")
+-	transition := TransitionRequest{RunID: run.RunID, SandboxID: sandbox.Summary.ID, LogsPath: logsPath}
++	transition = TransitionRequest{RunID: run.RunID, SandboxID: sandbox.Summary.ID, LogsPath: logsPath}
+ 	if c.store == nil || c.runtime == nil {
+ 		err := fmt.Errorf("command runtime dependencies are required")
+ 		transition.ExitCode = 1
+@@ -65,12 +66,34 @@
+ 		transition.Error = fmt.Sprintf("command execution failed: %v", err)
+ 		return transition, err
+ 	}
++	facade, err := c.prepareProjectCommandFacade(ctx, run, sandbox)
++	if err != nil {
++		transition.ExitCode = 1
++		transition.Error = fmt.Sprintf("command execution failed: %v", err)
++		return transition, err
++	}
++	defer func() {
++		if err := c.retireProjectCommandFacade(ctx, facade.TokenHashes, returnErr); err != nil {
++			transition.CleanupError = err.Error()
++			transition.ExitCode = execution.FirstNonZeroInt(transition.ExitCode, 1)
++			returnErr = errors.Join(returnErr, err)
++		}
++	}()
++	env := execEnvMap(req.Env)
++	if len(facade.Env) > 0 {
++		// Inherit managed credentials from the exec environment; never persist
++		// them in command-request.json or permit the child env to replace them.
++		env = llms.MergeManagedExecEnv(env, nil)
++		for name := range facade.Env {
++			delete(env, name)
++		}
++	}
+ 	guestArtifactsDir := filepath.Join(c.config.GuestStateRoot, "runs", run.RunID)
+ 	runtimeRequest := execution.RuntimeCommandRequestPayloadFromCommand(c.config, execution.RuntimeCommandSpec{
+ 		Mode:   "shell",
+ 		Script: commandText,
+ 		Cwd:    c.config.GuestWorkspacePath,
+-		Env:    execEnvMap(req.Env),
++		Env:    env,
+ 	}, guestArtifactsDir)
+ 	hostRequestPath := filepath.Join(artifactsDir, "command-request.json")
+ 	guestRequestPath := filepath.Join(guestArtifactsDir, "command-request.json")
+@@ -105,7 +128,11 @@
+ 	}
+ 	execCtx, cancel := execution.ExecContext(ctx, 0)
+ 	defer cancel()
+-	result, execErr := runtime.ExecStream(execCtx, sandbox, vmState, execution.BuildRuntimeCommandExecSpec(c.config, sandbox, guestRequestPath, c.config.GuestHomePath), writer)
++	spec := execution.BuildRuntimeCommandExecSpec(c.config, sandbox, guestRequestPath, c.config.GuestHomePath)
++	if len(facade.Env) > 0 {
++		spec.Env = llms.MergeManagedExecEnv(spec.Env, facade.Env)
++	}
++	result, execErr := runtime.ExecStream(execCtx, sandbox, vmState, spec, writer)
+ 	if pullErr := execution.SyncGuestDirToHost(ctx, guestArtifactsDir, artifactsDir, guestDirReaderFor(runtime, sandbox, vmState)); pullErr != nil {
+ 		execErr = errors.Join(execErr, fmt.Errorf("pull command artifacts: %w", pullErr))
+ 	}
+--- /dev/null
++++ b/pkg/runs/command_facade.go
+@@ -0,0 +1,47 @@
++package runs
++
++import (
++	"context"
++	"errors"
++	"fmt"
++	"strings"
++
++	driverpkg "github.com/chaitin/agent-compose/pkg/driver"
++	"github.com/chaitin/agent-compose/pkg/llms/runtimefacade"
++	domain "github.com/chaitin/agent-compose/pkg/model"
++)
++
++func (c *Controller) prepareProjectCommandFacade(ctx context.Context, run domain.ProjectRunRecord, sandbox *domain.Sandbox) (runtimefacade.CommandFacadeConfig, error) {
++	store, ok := c.configDB.(runtimefacade.CommandFacadeStore)
++	if !ok || c.config == nil || sandbox == nil {
++		return runtimefacade.CommandFacadeConfig{}, nil
++	}
++	if strings.TrimSpace(run.RunID) == "" {
++		return runtimefacade.CommandFacadeConfig{}, fmt.Errorf("command facade requires a native run ID")
++	}
++	agent, err := c.projectRunAgentConfig(ctx, run)
++	if err != nil {
++		return runtimefacade.CommandFacadeConfig{}, err
++	}
++	// Reconstruct from the immutable revision, not caller env or a transient
++	// session token. Reused sandboxes need not retain their RuntimeEnvItems.
++	return runtimefacade.EnsureSessionCommandFacadeConfig(ctx, runtimefacade.CommandFacadeConfigRequest{
++		Config: c.config, Store: store, Session: sandbox, Agent: agent.Provider,
++		Model: agent.Model, Source: runtimefacade.TokenSourceAgent, RunID: run.RunID,
++	})
++}
++
++func (c *Controller) retireProjectCommandFacade(ctx context.Context, hashes []string, executionErr error) error {
++	if len(hashes) == 0 || errors.Is(executionErr, domain.ErrExecTerminationUnconfirmed) || errors.Is(executionErr, driverpkg.ErrExecTerminationUnconfirmed) {
++		return nil
++	}
++	store := c.configDB.(runtimefacade.CommandFacadeStore)
++	cleanupCtx := context.WithoutCancel(ctx)
++	var cleanupErr error
++	for _, hash := range hashes {
++		if err := store.DeleteLLMFacadeTokenHash(cleanupCtx, hash); err != nil {
++			cleanupErr = errors.Join(cleanupErr, fmt.Errorf("delete command facade token: %w", err))
++		}
++	}
++	return cleanupErr
++}
+--- /dev/null
++++ b/pkg/runs/command_facade_export_test.go
+@@ -0,0 +1,91 @@
++package runs
++
++import (
++	"context"
++	"encoding/json"
++	"errors"
++	"io"
++	"testing"
++
++	appconfig "github.com/chaitin/agent-compose/pkg/config"
++	driverpkg "github.com/chaitin/agent-compose/pkg/driver"
++	"github.com/chaitin/agent-compose/pkg/execution"
++	domain "github.com/chaitin/agent-compose/pkg/model"
++)
++
++// ConfigStore imports runs. This test-only bridge lets the external regression
++// use real SQLite and proxy packages without a circular production dependency.
++func IsolateCommandFacadeEnvForTest(t *testing.T) { isolatePromptAttachLLMEnv(t) }
++
++func ExecuteProjectCommandFacadeForTest(ctx context.Context, c *Controller, run domain.ProjectRunRecord, sandbox *domain.Sandbox, request RunAgentRequest, attached bool) (TransitionRequest, error) {
++	if !attached {
++		return c.executeProjectRunCommand(ctx, projectRunCommandExecution{Run: run, Sandbox: sandbox, Request: request, CommandText: request.Command})
++	}
++	if _, err := c.interactiveSessions.Create(run.RunID); err != nil {
++		return TransitionRequest{}, err
++	}
++	return c.runCommandInteraction(ctx, interactionRunContext{Run: run, Sandbox: sandbox, Request: request}, RunAttachInput{}, func() (RunAttachInput, error) { return RunAttachInput{}, io.EOF }, func(RunAttachOutput) error { return nil })
++}
++
++// Replace only the runtime adapter; preserve actual serialized child-env
++// precedence before the regression sends an authenticated facade request.
++type CommandFacadeRuntimeForTest struct {
++	guestFileControllerRuntime
++	Invoke            func(map[string]string)
++	ExecErr, SetupErr error
++}
++
++func (r *CommandFacadeRuntimeForTest) WriteGuestFile(ctx context.Context, sandbox *domain.Sandbox, state domain.VMState, path string, content []byte) error {
++	if r.SetupErr != nil {
++		return r.SetupErr
++	}
++	return r.guestFileControllerRuntime.WriteGuestFile(ctx, sandbox, state, path, content)
++}
++
++func (r *CommandFacadeRuntimeForTest) ExecStream(ctx context.Context, sandbox *domain.Sandbox, state domain.VMState, spec domain.ExecSpec, writer domain.ExecStreamWriter) (domain.ExecResult, error) {
++	r.execStarted = true
++	var request execution.RuntimeCommandRequest
++	if err := json.Unmarshal(r.writtenData, &request); err != nil {
++		return domain.ExecResult{}, err
++	}
++	env := execution.BuildSandboxExecEnv(&appconfig.Config{}, sandbox, "")
++	for k, v := range spec.Env {
++		env[k] = v
++	}
++	for k, v := range request.Env {
++		env[k] = v
++	}
++	r.Invoke(env)
++	result, err := r.fakeControllerRuntime.ExecStream(ctx, sandbox, state, spec, writer)
++	return result, errors.Join(err, r.ExecErr)
++}
++
++func (r *CommandFacadeRuntimeForTest) OpenInteraction(_ context.Context, sandbox *domain.Sandbox, _ domain.VMState, spec driverpkg.RuntimeStartSpec) (driverpkg.RuntimeInteraction, error) {
++	if r.SetupErr != nil {
++		return nil, r.SetupErr
++	}
++	env := execution.BuildSandboxExecEnv(&appconfig.Config{}, sandbox, "")
++	for k, v := range spec.Env {
++		env[k] = v
++	}
++	for k, v := range spec.Command.Env {
++		env[k] = v
++	}
++	r.Invoke(env)
++	interaction := newScriptedRunAttachInteraction()
++	if r.ExecErr != nil {
++		interaction.frames <- driverpkg.RuntimeOutputFrame{Type: driverpkg.RuntimeOutputError, Error: &driverpkg.RuntimeError{Message: r.ExecErr.Error()}}
++	}
++	interaction.frames <- driverpkg.RuntimeOutputFrame{Type: driverpkg.RuntimeOutputResult, Result: &driverpkg.RuntimeResult{Success: true}}
++	close(interaction.frames)
++	return &commandFacadeWaitForTest{scriptedRunAttachInteraction: interaction, err: r.ExecErr}, nil
++}
++
++type commandFacadeWaitForTest struct {
++	*scriptedRunAttachInteraction
++	err error
++}
++
++func (i *commandFacadeWaitForTest) Wait() (driverpkg.RuntimeResult, error) {
++	return driverpkg.RuntimeResult{Success: i.err == nil}, i.err
++}
+--- /dev/null
++++ b/pkg/runs/command_facade_test.go
+@@ -0,0 +1,255 @@
++package runs_test
++
++import (
++	"bytes"
++	"context"
++	"encoding/json"
++	"errors"
++	"fmt"
++	"io"
++	"log/slog"
++	"net/http"
++	"net/http/httptest"
++	"os"
++	"path/filepath"
++	"strings"
++	"sync"
++	"testing"
++
++	"github.com/chaitin/agent-compose/pkg/agentcompose/proxy"
++	appconfig "github.com/chaitin/agent-compose/pkg/config"
++	driverpkg "github.com/chaitin/agent-compose/pkg/driver"
++	"github.com/chaitin/agent-compose/pkg/internal/testutil"
++	"github.com/chaitin/agent-compose/pkg/llms"
++	domain "github.com/chaitin/agent-compose/pkg/model"
++	"github.com/chaitin/agent-compose/pkg/runs"
++	"github.com/chaitin/agent-compose/pkg/storage/configstore"
++	agentcomposev2 "github.com/chaitin/agent-compose/proto/agentcompose/v2"
++	"github.com/labstack/echo/v4"
++)
++
++type commandRunFacadeStore struct {
++	*configstore.ConfigStore
++	keyless bool
++}
++
++func (s *commandRunFacadeStore) GetProject(context.Context, string) (domain.ProjectRecord, error) {
++	return domain.ProjectRecord{ID: "project-command", Name: "command", CurrentRevision: 1}, nil
++}
++
++func (s *commandRunFacadeStore) GetProjectRevision(context.Context, string, int64) (domain.ProjectRevisionRecord, error) {
++	spec := `{"agents":[{"name":"worker","provider":"opencode","env":[{"name":"OPENCODE_MODEL","value":"baizhi/grok-4.6"}]}]}`
++	if s.keyless {
++		spec = `{"agents":[{"name":"worker","provider":"codex"}]}`
++	}
++	return domain.ProjectRevisionRecord{ProjectID: "project-command", Revision: 1, SpecJSON: spec}, nil
++}
++
++type commandFacadeSandbox struct{ sandbox *domain.Sandbox }
++
++func (s commandFacadeSandbox) GetSandbox(context.Context, string) (*domain.Sandbox, error) {
++	return s.sandbox, nil
++}
++
++type commandFacadeAudit struct {
++	mu sync.Mutex
++	bytes.Buffer
++}
++
++func (b *commandFacadeAudit) Write(p []byte) (int, error) {
++	b.mu.Lock()
++	defer b.mu.Unlock()
++	return b.Buffer.Write(p)
++}
++
++func (b *commandFacadeAudit) text() string {
++	b.mu.Lock()
++	defer b.mu.Unlock()
++	return b.Buffer.String()
++}
++
++func TestProjectCommandFacadeRunAttribution(t *testing.T) {
++	runs.IsolateCommandFacadeEnvForTest(t)
++	for _, mode := range []string{"command", "attached-command"} {
++		for _, scenario := range []struct {
++			name                            string
++			callerConflict, reused, keyless bool
++			execErr, setupErr               error
++			retain                          bool
++		}{
++			{name: "completed"},
++			{name: "caller-cannot-rebind", callerConflict: true},
++			{name: "reused-without-transient-env", reused: true},
++			{name: "execution-failed", execErr: errors.New("synthetic guest failure")},
++			{name: "termination-unconfirmed", execErr: driverpkg.ErrExecTerminationUnconfirmed, retain: true},
++			{name: "setup-failed", setupErr: errors.New("synthetic setup failure")},
++			{name: "keyless-command", keyless: true},
++		} {
++			t.Run(mode+"/"+scenario.name, func(t *testing.T) {
++				ctx := context.Background()
++				root := t.TempDir()
++				config := &appconfig.Config{DataRoot: root, DbAddr: filepath.Join(root, "data.db"), SandboxRoot: filepath.Join(root, "sandboxes"), RuntimeBaseURL: "http://facade.test", GuestStateRoot: "/state", GuestHomePath: "/root", GuestWorkspacePath: "/workspace"}
++				db, sandboxStore, err := testutil.OpenStores(t, config)
++				if err != nil {
++					t.Fatal(err)
++				}
++				upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
++					w.Header().Set("Content-Type", "application/json")
++					io.WriteString(w, `{"id":"chat-1","object":"chat.completion","model":"grok-4.6","choices":[{"index":0,"message":{"role":"assistant","content":"synthetic"},"finish_reason":"stop"}]}`)
++				}))
++				defer upstream.Close()
++				provider := llms.Provider{ID: "baizhi", ProviderType: llms.ProviderFamilyOpenAI, DefaultWireAPI: llms.APIProtocolChatCompletions, BaseURL: upstream.URL + "/v1", APIKey: "synthetic-upstream-key", Enabled: true, Scope: llms.ProviderScopeSystem}
++				model := llms.Model{ID: "grok-4.6", Name: "grok-4.6", Enabled: true, DefaultModel: true, Scope: llms.ProviderScopeSystem}
++				if !scenario.keyless {
++					var catalog llms.ModelCatalog
++					if err := json.Unmarshal([]byte(fmt.Sprintf(`{"default":"baizhi/grok-4.6","providers":{"baizhi":{"baseUrl":%q,"protocol":"chat_completions","apiKey":"synthetic-upstream-key","models":[{"id":"grok-4.6","protocol":"chat_completions"}]}}}`, provider.BaseURL)), &catalog); err != nil {
++						t.Fatal(err)
++					}
++					if err := db.ApplyModelCatalog(ctx, catalog); err != nil {
++						t.Fatal(err)
++					}
++				}
++				sandbox, err := sandboxStore.CreateSandbox(ctx, "command facade", "", driverpkg.RuntimeDriverDocker, "guest:local", "", domain.SandboxTypeScript, nil, nil, nil)
++				if err != nil {
++					t.Fatal(err)
++				}
++				sandbox.Summary.VMStatus = domain.VMStatusRunning
++				if err := sandboxStore.SaveVMState(sandbox.Summary.ID, domain.VMState{Driver: driverpkg.RuntimeDriverDocker}); err != nil {
++					t.Fatal(err)
++				}
++				var initialEnv map[string]string
++				if !scenario.keyless {
++					initialEnv, err = llms.EnsureOpenCodeFacadeConfig(ctx, llms.OpenCodeFacadeConfigRequest{Config: config, Store: db, Sandbox: sandbox, Model: "baizhi/grok-4.6", Source: "session"})
++					if err != nil {
++						t.Fatal(err)
++					}
++					sandbox.RuntimeEnvItems = llms.EnvItemsFromMap(initialEnv, true)
++				}
++				if scenario.reused {
++					sandbox.RuntimeEnvItems = nil
++				}
++				var audit commandFacadeAudit
++				previous := slog.Default()
++				slog.SetDefault(slog.New(slog.NewJSONHandler(&audit, nil)))
++				defer slog.SetDefault(previous)
++				facade := echo.New()
++				proxy.RegisterRuntimeLLMFacadeRoutes(facade, proxy.RuntimeLLMOptions{Tokens: db, Sandboxes: commandFacadeSandbox{sandbox}, ResolveTarget: func(context.Context, string, string) (llms.ResolvedTarget, error) {
++					return llms.ResolvedTarget{Provider: provider, Model: model, WireAPI: llms.APIProtocolChatCompletions}, nil
++				}})
++				requestBody := `{"model":"grok-4.6","messages":[{"role":"user","content":"synthetic"}],"stream":false,"max_tokens":2048}`
++				callFacade := func(endpoint, token string) int {
++					request := httptest.NewRequest(http.MethodPost, endpoint+"/chat/completions", strings.NewReader(requestBody))
++					request.Header.Set("Authorization", "Bearer "+token)
++					request.Header.Set("Content-Type", "application/json")
++					// Neither a caller header nor request env may choose attribution.
++					request.Header.Set("X-Run-ID", "caller-forged-run")
++					response := httptest.NewRecorder()
++					facade.ServeHTTP(response, request)
++					return response.Code
++				}
++				var usedToken string
++				var status int
++				invoked := false
++				runtime := &runs.CommandFacadeRuntimeForTest{ExecErr: scenario.execErr, SetupErr: scenario.setupErr, Invoke: func(env map[string]string) {
++					invoked = true
++					if scenario.keyless {
++						return
++					}
++					usedToken = env["OPENAI_API_KEY"]
++					status = callFacade(env["OPENAI_BASE_URL"], usedToken)
++				}}
++				controller := runs.NewController(runs.ControllerDependencies{Config: config, Store: sandboxStore, ConfigDB: &commandRunFacadeStore{ConfigStore: db, keyless: scenario.keyless}, Runtime: func(*domain.Sandbox) (runs.Runtime, error) { return runtime, nil }})
++				run := domain.ProjectRunRecord{RunID: "run-" + mode + "-" + scenario.name, ProjectID: "project-command", ProjectRevision: 1, AgentName: "worker"}
++				request := runs.RunAgentRequest{Command: "query"}
++				if scenario.callerConflict {
++					request.Env = []*agentcomposev2.EnvVarSpec{
++						{Name: "OPENAI_API_KEY", Value: initialEnv["OPENAI_API_KEY"]},
++						{Name: "AGENT_COMPOSE_SANDBOX_TOKEN", Value: initialEnv["AGENT_COMPOSE_SANDBOX_TOKEN"]},
++						{Name: "OPENAI_BASE_URL", Value: "http://facade.test/caller-endpoint"},
++					}
++				}
++				transition, err := runs.ExecuteProjectCommandFacadeForTest(ctx, controller, run, sandbox, request, mode == "attached-command")
++				if scenario.execErr != nil || scenario.setupErr != nil {
++					wantErr := scenario.execErr
++					if wantErr == nil {
++						wantErr = scenario.setupErr
++					}
++					if !errors.Is(err, wantErr) || transition.ExitCode == 0 {
++						t.Fatalf("failure lost: exit=%d err=%v", transition.ExitCode, err)
++					}
++				} else if err != nil || transition.ExitCode != 0 || !invoked {
++					t.Fatalf("command unavailable: exit=%d invoked=%v err=%v", transition.ExitCode, invoked, err)
++				}
++				var remaining int
++				if err := db.DB().QueryRowContext(ctx, `SELECT COUNT(*) FROM llm_facade_token WHERE run_id = ?`, run.RunID).Scan(&remaining); err != nil {
++					t.Fatal(err)
++				}
++				if scenario.retain != (remaining > 0) {
++					t.Fatalf("run token ownership: remaining=%d retain=%v", remaining, scenario.retain)
++				}
++				if scenario.setupErr != nil || scenario.keyless {
++					if status != 0 || usedToken != "" {
++						t.Fatal("setup/keyless command reached the facade")
++					}
++					return
++				}
++				if status != http.StatusOK {
++					t.Fatalf("command facade HTTP%d", status)
++				}
++				seen := map[string]int{}
++				for _, line := range strings.Split(strings.TrimSpace(audit.text()), "\n") {
++					var event map[string]any
++					if err := json.Unmarshal([]byte(line), &event); err != nil {
++						t.Fatal(err)
++					}
++					switch name, _ := event["event"].(string); name {
++					case "accepted", "attempt", "request_written", "response_headers", "finished":
++						seen[name]++
++						if event["run_id"] != run.RunID || event["sandbox_id"] != sandbox.Summary.ID || event["provider_id"] != "baizhi" || event["wire_api"] != llms.APIProtocolChatCompletions {
++							t.Errorf("%s binding: run=%q sandbox=%q provider=%q wire=%q", name, event["run_id"], event["sandbox_id"], event["provider_id"], event["wire_api"])
++						}
++					}
++				}
++				for _, event := range []string{"accepted", "attempt", "request_written", "response_headers", "finished"} {
++					if seen[event] != 1 {
++						t.Errorf("%s events=%d", event, seen[event])
++					}
++				}
++				if err := filepath.WalkDir(filepath.Dir(transition.LogsPath), func(path string, entry os.DirEntry, walkErr error) error {
++					if walkErr != nil {
++						return walkErr
++					}
++					if entry.IsDir() {
++						return nil
++					}
++					data, err := os.ReadFile(path)
++					if err != nil {
++						return err
++					}
++					if bytes.Contains(data, []byte(usedToken)) {
++						t.Errorf("run credential exposed in retained artifact %s", filepath.Base(path))
++					}
++					return nil
++				}); err != nil {
++					t.Fatal(err)
++				}
++				wantStatus := http.StatusUnauthorized
++				if scenario.retain {
++					wantStatus = http.StatusOK
++				}
++				if got := callFacade(initialEnv["OPENAI_BASE_URL"], usedToken); got != wantStatus {
++					t.Errorf("run credential after return: HTTP%d, want %d", got, wantStatus)
++				}
++				if got := callFacade(initialEnv["OPENAI_BASE_URL"], initialEnv["OPENAI_API_KEY"]); got != http.StatusOK {
++					t.Fatalf("unrelated session credential no longer works: HTTP%d", got)
++				}
++				for _, item := range sandbox.RuntimeEnvItems {
++					if item.Name == "OPENAI_API_KEY" && item.Value != initialEnv[item.Name] {
++						t.Fatal("run credential mutated shared sandbox environment")
++					}
++				}
++				t.Logf("mode=%s nativeRun=%s upstream=loopback retained=%v", mode, run.RunID, scenario.retain)
++			})
++		}
++	}
++}
+--- a/pkg/runs/run_attach.go
++++ b/pkg/runs/run_attach.go
+@@ -13,6 +13,7 @@
+ 	appconfig "github.com/chaitin/agent-compose/pkg/config"
+ 	driverpkg "github.com/chaitin/agent-compose/pkg/driver"
+ 	"github.com/chaitin/agent-compose/pkg/execution"
++	"github.com/chaitin/agent-compose/pkg/llms"
+ 	domain "github.com/chaitin/agent-compose/pkg/model"
+ )
+ 
+@@ -108,9 +109,11 @@
+ 	Run         domain.ProjectRunRecord
+ 	Interaction driverpkg.RuntimeInteraction
+ 	LogsPath    string
+-}
+-
+-func (c *Controller) openCommandInteraction(ctx context.Context, runCtx interactionRunContext, commandText string, start RunAttachInput) (commandInteractionSession, error) {
++	Cancel      context.CancelFunc
++	TokenHashes []string
++}
++
++func (c *Controller) openCommandInteraction(ctx context.Context, runCtx interactionRunContext, commandText string, start RunAttachInput) (_ commandInteractionSession, returnErr error) {
+ 	run := runCtx.Run
+ 	sandbox := runCtx.Sandbox
+ 	req := runCtx.Request
+@@ -139,6 +142,28 @@
+ 	if err != nil {
+ 		return commandInteractionSession{}, err
+ 	}
++	facade, err := c.prepareProjectCommandFacade(ctx, run, sandbox)
++	if err != nil {
++		return commandInteractionSession{}, err
++	}
++	env := execEnvMap(req.Env)
++	if len(facade.Env) > 0 {
++		env = llms.MergeManagedExecEnv(env, facade.Env)
++	}
++	interactionCtx, cancel := context.WithCancel(ctx)
++	var opened driverpkg.RuntimeInteraction
++	transferred := false
++	defer func() {
++		if transferred {
++			return
++		}
++		cancel()
++		if opened != nil && len(facade.TokenHashes) > 0 {
++			_, waitErr := opened.Wait()
++			returnErr = errors.Join(returnErr, waitErr)
++		}
++		returnErr = errors.Join(returnErr, c.retireProjectCommandFacade(ctx, facade.TokenHashes, returnErr))
++	}()
+ 	spec := driverpkg.RuntimeStartSpec{
+ 		OperationID: run.RunID,
+ 		Kind:        driverpkg.RuntimeOperationCommand,
+@@ -146,17 +171,18 @@
+ 		Command: &driverpkg.RuntimeCommandSpec{
+ 			Command: "bash",
+ 			Args:    []string{"-lc", commandText},
+-			Env:     execEnvMap(req.Env),
++			Env:     env,
+ 			Cwd:     c.config.GuestWorkspacePath,
+ 		},
+ 		Cwd:         c.config.GuestWorkspacePath,
+-		Env:         execEnvMap(req.Env),
++		Env:         env,
+ 		AttachStdin: start.AttachStdin,
+ 		TTY:         start.TTY,
+ 		Rows:        start.Rows,
+ 		Cols:        start.Cols,
+ 	}
+-	interaction, err := interactionRuntime.OpenInteraction(ctx, sandbox, vmState, spec)
++	interaction, err := interactionRuntime.OpenInteraction(interactionCtx, sandbox, vmState, spec)
++	opened = interaction
+ 	if err != nil {
+ 		return commandInteractionSession{}, err
+ 	}
+@@ -164,10 +190,11 @@
+ 	if err != nil {
+ 		return commandInteractionSession{}, err
+ 	}
+-	return commandInteractionSession{Run: run, Interaction: interaction, LogsPath: logsPath}, nil
+-}
+-
+-func (c *Controller) runCommandInteraction(ctx context.Context, runCtx interactionRunContext, start RunAttachInput, receive RunAttachReceiver, send RunAttachSender) (TransitionRequest, error) {
++	transferred = true
++	return commandInteractionSession{Run: run, Interaction: interaction, LogsPath: logsPath, Cancel: cancel, TokenHashes: facade.TokenHashes}, nil
++}
++
++func (c *Controller) runCommandInteraction(ctx context.Context, runCtx interactionRunContext, start RunAttachInput, receive RunAttachReceiver, send RunAttachSender) (transition TransitionRequest, returnErr error) {
+ 	run := runCtx.Run
+ 	sandbox := runCtx.Sandbox
+ 	commandText := strings.TrimSpace(runCtx.Request.Command)
+@@ -176,11 +203,28 @@
+ 		logsPath := filepath.Join(projectRunCommandArtifactsDir(run, sandbox), "transcript.txt")
+ 		return TransitionRequest{RunID: run.RunID, SandboxID: sandbox.Summary.ID, LogsPath: logsPath, ExitCode: 1, Error: fmt.Sprintf("command execution failed: %v", err)}, err
+ 	}
+-	transition := TransitionRequest{RunID: run.RunID, SandboxID: sandbox.Summary.ID}
++	transition = TransitionRequest{RunID: run.RunID, SandboxID: sandbox.Summary.ID}
+ 	run = session.Run
+ 	logsPath := session.LogsPath
+ 	transition.LogsPath = logsPath
+ 	interaction := session.Interaction
++	defer func() {
++		session.Cancel()
++		if len(session.TokenHashes) == 0 {
++			return
++		}
++		// CloseSend only closes stdin. Wait preserves the driver's typed
++		// termination result even when output/error frames contain only text.
++		_, waitErr := interaction.Wait()
++		returnErr = errors.Join(returnErr, waitErr)
++		if err := c.retireProjectCommandFacade(ctx, session.TokenHashes, returnErr); err != nil {
++			transition.CleanupError = err.Error()
++			returnErr = errors.Join(returnErr, err)
++		}
++		if returnErr != nil {
++			transition.ExitCode = execution.FirstNonZeroInt(transition.ExitCode, 1)
++		}
++	}()
+ 	defer func() { _ = interaction.CloseSend() }()
+ 	go pumpRunAttachInput(receive, interaction)
+ 	accumulator := execution.ExecStreamAccumulator{}

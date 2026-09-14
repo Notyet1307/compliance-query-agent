@@ -1,0 +1,10 @@
+{
+  "name": "cqa-x1-synthetic-knowledge",
+  "version": "0.0.0-x1",
+  "private": true,
+  "type": "module",
+  "bin": { "compliance-kb": "bin/compliance-kb.js" },
+  "files": ["bin", "service.json", "proto", "data"],
+  "dependencies": { "@chaitin-ai/octobus-sdk": "0.6.0" },
+  "bundleDependencies": ["@chaitin-ai/octobus-sdk"]
+}

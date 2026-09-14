@@ -8,7 +8,7 @@
 /capsets/<capset>/connect/<instance>/<package.Service>/<Method>
 ```
 
-本项目提出 `compliance.v1.KnowledgeService/Search`，定义在 `protocol/compliance.proto`。**这不是 OctoBus 内置能力；启动包不包含可运行的知识服务 package，也未向 OctoBus 导入任何服务。** 真实知识系统/Node service package 由 S1/S2 按实际接口建设。
+本项目定义 `compliance.v1.KnowledgeService/Search`，契约位于 `protocol/compliance.proto`。这不是 OctoBus 内置能力。`experiments/x1/service/` 的合成 package 已在 X1 中真实导入并调用；真实知识系统仍须按来源、授权和实际接口另行批准建设。
 
 ## 最小外部能力
 
@@ -20,11 +20,11 @@
 
 ## 两条路线
 
-**当前代码**：octobus_connect 模式由受信配置固定完整 Connect endpoint 和 token 引用，仅调用 Search，发送 Connect-Protocol-Version: 1。该 token 是所部署网关/外层认证方式的配置项，不凭字段名推断 OctoBus 天然提供细粒度身份权限。直接模式的远程认证与只读路径 ACL 需要真实验证。
+**Direct Connect**：`octobus_connect` 模式由受信配置固定完整 endpoint 和 token 引用，仅调用 Search，发送 Connect-Protocol-Version: 1；目前仅做模拟协议验证。该 token 是网关/外层认证配置，不凭字段名推断细粒度权限；远程认证与只读 ACL 仍需真实验证。
 
-**目标推荐**：agent-compose 原生 octobus_servers + qualified capset_ids，保留上游 token 在 daemon。上游说明原生能力网关配置/guide 注入可能在失败时只告警仍启动 sandbox，因此本业务必须另做硬性的查询可用性/权限验证，不能把 sandbox started 当数据链路成功。
+**X1 原生候选**：`octobus_native_x1` 已通过 agent-compose 的 `octobus_servers + qualified capset_ids`，使用 guest 的 `CAP_GRPC_TARGET/CAP_TOKEN` 调用真实合成 Search。固定 grpcurl/proto、sandbox 凭据内部展开，上游 token 留在 daemon，不自动回退 Direct。guide 注入失败可能只告警，所以 sandbox started 不是查询成功证明。
 
-原生注入的实际 guest 变量/代理调用协议尚未适配，本包不捏造名称。X1 只回答这一个运行接缝问题；根据结果实现正式 Adapter，或明确批准直接 Connect 的权限成本。
+接入或部署原生路径前，必须读取 [X1 执行记录与 ADR](../../docs/specs/x1.md)：该候选仅验证 synthetic/extractive，plaintext 专用网络、daemon 管理级测试凭据、跨 runtime 回执丢失和取消 UNKNOWN 都有明确边界；并非正式生产 Adapter。
 
 ## 请求示意
 
@@ -40,4 +40,4 @@
 }
 ```
 
-响应形状见 protocol/compliance.proto；本地 httptest 验证了客户端请求/解析，但并未启动 OctoBus，更未证明已连接实际企业知识库。
+响应形状见 protocol/compliance.proto；Direct Connect 的 httptest 与 X1 的真实原生 gRPC 试验是两套证据。后者已启动并调用 OctoBus，但仍未连接真实企业知识库。

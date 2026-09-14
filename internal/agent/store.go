@@ -14,9 +14,14 @@ type receipt struct {
 	State         string      `json:"state"`
 	Result        *Result     `json:"result,omitempty"`
 	ErrorCode     string      `json:"errorCode,omitempty"`
+	ResultDigest  string      `json:"resultDigest,omitempty"`
 	TokenUsage    *TokenUsage `json:"tokenUsage,omitempty"`
 }
-type Store struct{ dir string }
+type Store struct {
+	dir                 string
+	requireResultDigest bool
+	rootInfo            os.FileInfo
+}
 
 func NewStore(dir string) (*Store, error) {
 	if e := os.MkdirAll(dir, 0700); e != nil {
@@ -26,12 +31,32 @@ func NewStore(dir string) (*Store, error) {
 	if e != nil || !st.IsDir() || st.Mode()&os.ModeSymlink != 0 || st.Mode().Perm()&0077 != 0 {
 		return nil, problem("STORE_PERMISSIONS_UNSAFE", 500)
 	}
-	return &Store{dir}, nil
+	return &Store{dir: dir}, nil
+}
+
+func (s *Store) checkRoot() error {
+	if s.rootInfo == nil {
+		return nil
+	}
+	st, err := os.Lstat(s.dir)
+	if err != nil || !st.IsDir() {
+		return problem("STORE_UNAVAILABLE", 500)
+	}
+	if st.Mode().Perm() != 0700 {
+		return problem("STORE_PERMISSIONS_UNSAFE", 500)
+	}
+	if !os.SameFile(s.rootInfo, st) {
+		return problem("PERSISTENT_STORE_REQUIRED", 500)
+	}
+	return nil
 }
 
 // O_EXCL reserves a stable request before network I/O. An interrupted reservation
 // never auto-retries. This is a local execution receipt, not an Accord task ledger.
 func (s *Store) reserve(id, input, config string) (*Result, error) {
+	if err := s.checkRoot(); err != nil {
+		return nil, err
+	}
 	p := filepath.Join(s.dir, id+".json")
 	f, e := os.OpenFile(p, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 	if os.IsExist(e) {
@@ -47,12 +72,18 @@ func (s *Store) reserve(id, input, config string) (*Result, error) {
 		if old.InputDigest != input || old.ConfigDigest != config {
 			return nil, problem("IDEMPOTENCY_CONFLICT", 409)
 		}
-		if old.State == "completed" && old.Result != nil {
+		if old.State == "completed" {
+			if old.Result == nil || ((s.requireResultDigest || old.ResultDigest != "") && old.ResultDigest != hashJSON(old.Result)) {
+				return nil, problem("RECEIPT_CORRUPT", 500)
+			}
 			r := old.Result
 			if r.SchemaVersion != ResultSchema || r.RequestID != id || r.InputDigest != input || r.ConfigDigest != config {
 				return nil, problem("RECEIPT_CORRUPT", 500)
 			}
 			return r, nil
+		}
+		if (old.State != "reserved" && old.State != "blocked") || old.Result != nil {
+			return nil, problem("RECEIPT_CORRUPT", 500)
 		}
 		return nil, problem("PREVIOUS_EXECUTION_UNRESOLVED", 409)
 	}
@@ -85,7 +116,13 @@ func (s *Store) syncDir() error {
 	return nil
 }
 func (s *Store) finish(id, input, config string, r *Result, usage *TokenUsage, runErr error) error {
+	if s.checkRoot() != nil {
+		return problem("STORE_WRITE_FAILED", 500)
+	}
 	rec := receipt{SchemaVersion: "cqa.receipt/v1", InputDigest: input, ConfigDigest: config, State: "completed", Result: r}
+	if r != nil {
+		rec.ResultDigest = hashJSON(r)
+	}
 	if runErr != nil {
 		rec.State = "blocked"
 		rec.ErrorCode = ErrorCode(runErr)

@@ -1,0 +1,223 @@
+{
+  "schemaVersion": "cqa.accepted-query-publication/v1",
+  "scope": "S2 current synthetic single-document real query and managed draft-quality slice only",
+  "status": "OWNER_ACCEPTED_CURRENT_QUERY_QUALITY_SLICE",
+  "ownerAcceptance": {
+    "statement": "满足预期",
+    "recordedAt": "2026-09-14T07:57:41.913058+00:00",
+    "recordSHA256": "28cbc9cf317adcd0a7d418e99544559bf162455de0cbe183484207bb64536f27",
+    "draftSHA256": "81940c5f84e8667e5117d7579d397f4236347d13366a39982bcf3ab01d833b21",
+    "reviewSHA256": "675f4a7c694a7819b7aea76ab5b7c2ef334c810ed50b64bc9ae6153d39aa8d3d",
+    "runtimeEvidenceSealSHA256": "185d4bbe01e4c362e38980e39d022bf85f5eb8892459e1027cea8302c546312b",
+    "historicalEvidenceUnchanged": true
+  },
+  "draft": {
+    "path": "evidence/s2-query/draft.json",
+    "sha256": "81940c5f84e8667e5117d7579d397f4236347d13366a39982bcf3ab01d833b21",
+    "sourcePath": "testdata/s1-test-document.json",
+    "sourceTextSHA256": "6682b44abfed44d9fb42c935be9bec04ac1b2ce3b6a43fe1b16df94d38e30ad5",
+    "sourceQualification": "SYNTHETIC_NOT_VERIFIED_LAW",
+    "omissions": [
+      "中央在京、跨省／全国联网且主管部门统一定级的备案安排未在说明中展开。",
+      "分支系统当地备案安排未展开；完整引用保留这些段落。",
+      "当前回答覆盖起算点与材料差异，不是完整备案办理指南。"
+    ],
+    "markersUnchanged": {
+      "dataMode": "synthetic_demo",
+      "humanReviewRequired": true,
+      "entailmentVerified": false
+    }
+  },
+  "candidate": {
+    "platformSealSHA256": "acb0d019dbfb0dc53c6e0c39dc39fa44a0198d14f3b3b5564d40c6a7b03f6d4f",
+    "platformSourceSnapshotSHA256": "3c39b4a91a52e03ebf037b32be9be4ae7abfaf7adeda22e8894a4628165f831a",
+    "actualMountedLinuxDaemonSHA256": "8cd19f27f0d6a8ba0dc6158ad50737b3e779fdd6c1e1fc11bb773a21b3ebc447",
+    "actualMountedCQABinarySHA256": "a98b6423b7b3602ff2777e52a48747fda4e3d018742a5e4ad2a760850b8a7355",
+    "CQAOriginalFrozenSnapshotSHA256": "e11fc0f1ed8ae432e8e83a285e24f1b00b6db6a1570f309cb27f61ba781ff0aa"
+  },
+  "runtime": {
+    "environment": {
+      "host": "darwin/arm64",
+      "toolchain": "go1.27.1 darwin/arm64; static linux/arm64 platform build",
+      "engine": {
+        "clientVersion": "29.4.0",
+        "serverVersion": "29.4.0",
+        "os": "linux",
+        "arch": "arm64"
+      },
+      "images": {
+        "daemon": "docker.io/chaitin/agent-compose@sha256:a97253d934ac46909a98020c1a900adf2dbe756460511a32fd6f70a7561c685a",
+        "guestBase": "docker.io/chaitin/agent-compose-guest@sha256:f035c09a810098bf38d8d6892ec3e965fae5effd45b6606d171a4cc80d8a3c0c",
+        "octobus": "docker.io/chaitin/octobus@sha256:a8160fc126e1c3814ea7287a9b527cf88e2a9b08f08ac839757fbd67ad223aec",
+        "effectiveGuest": "compliance-query-agent-guest@sha256:e202e11188012c8489fd7df87cf07fa14b3136ad16df86e84972f5be8eb4e367"
+      }
+    },
+    "normalRunId": "52d0aabdde31e34653b6ba10b569699bd0f791d04943d60eefe99a10b9324a8d",
+    "sandboxId": "e99408ff16b1cc2856f55c95db7deaf0665717883b581e8fac34ca8278da4d91",
+    "scenarios": [
+      {
+        "case": "undeclared-capset",
+        "status": "PASS",
+        "result": "UPSTREAM_REJECTED",
+        "searchHandlerEntries": 0,
+        "modelRequests": 0
+      },
+      {
+        "case": "invalid-capability-token",
+        "status": "PASS",
+        "result": "UPSTREAM_REJECTED",
+        "searchHandlerEntries": 0,
+        "modelRequests": 0
+      },
+      {
+        "case": "no-evidence",
+        "status": "PASS",
+        "result": "INSUFFICIENT_EVIDENCE",
+        "searchHandlerEntries": 1,
+        "modelRequests": 0
+      },
+      {
+        "case": "normal-draft",
+        "status": "PASS",
+        "result": "DRAFT_READY",
+        "searchHandlerEntries": 1,
+        "modelRequests": 1
+      }
+    ],
+    "successfulAttemptTotals": {
+      "queryCommands": 4,
+      "searchHandlerEntries": 2,
+      "modelRequests": 1,
+      "postAuthAuditEventsBoundToRunAndSandbox": 5
+    },
+    "recoveryAttemptsModelRequests": 1,
+    "resources": "All newly created containers stopped and retained; original resources and immutable failures preserved. No runtime operation performed during publication."
+  },
+  "tokenUsage": {
+    "status": "reported",
+    "provider": "baizhi-chat",
+    "model": "grok-4.6",
+    "inputTokens": 1197,
+    "outputTokens": 297,
+    "totalTokens": 3607,
+    "cachedInputTokens": 512,
+    "reasoningTokens": 2113
+  },
+  "AC": {
+    "S2-02-AC1": {
+      "status": "PASS_SCOPED",
+      "evidence": "Fixed candidate/image/input bindings, real parser, actual native guest/network/mount preflight, scoped query-only auth and exact catalog401."
+    },
+    "S2-02-AC2": {
+      "status": "PASS_SCOPED_OWNER_ACCEPTED",
+      "evidence": "One real DRAFT_READY, exact source/claim review, five post-auth audit events bound to actual run/sandbox. Later independent owner record supplies the accepted draft decision without rewriting the sealed runtime report."
+    },
+    "S2-02-AC3": {
+      "status": "PASS_SCOPED",
+      "evidence": "Real no-evidence result has empty claims/citations and not_called; source variants retain offline-only evidence."
+    },
+    "S2-02-AC4": {
+      "status": "NOT_RUN_THIS_QUERY_SLICE",
+      "evidence": "No repeated query executed; existing receipt protection retained, no live replay claim."
+    },
+    "S2-02-AC5": {
+      "status": "DEFERRED_BY_USER",
+      "evidence": "G3 and cross-container/new-sandbox replay removed from current critical path; not accepted or deleted."
+    },
+    "S2-02-AC6": {
+      "status": "PASS_SCOPED",
+      "evidence": "Real private RW mount/binary bindings and completed receipt verified; conflict/corruption/missing-store cases not run live."
+    },
+    "S2-02-AC7": {
+      "status": "PASS_SCOPED",
+      "evidence": "Permission refusals safe; earlier UNKNOWN query retained without retry; timeout/cancel/model-error variants not invoked live."
+    },
+    "S2-02-AC8": {
+      "status": "PASS_SCOPED",
+      "evidence": "Actual validated claims/citations and provider-reported usage; no billing cap or provider-internal retry proof."
+    },
+    "S2-02-AC9": {
+      "status": "PASS_SCOPED",
+      "evidence": "Actual network/mount/control-auth/query-permission observations and scoped secret scan; no general DLP/production isolation claim."
+    },
+    "S2-02-AC10": {
+      "status": "NOT_RUN_LIVE",
+      "evidence": "Single guest, sequential fixed commands; CQA prior concurrency proof remains offline. Unrelated upstream scheduler test failure remains separately disclosed."
+    },
+    "S2-02-AC11": {
+      "status": "CURRENT_QUERY_SLICE_ACCEPTED",
+      "evidence": "Four real scenarios and owner acceptance complete only the current query/draft slice. Whole work item/S2 and deferred replay are not accepted."
+    }
+  },
+  "G1": "PASS_SCOPED_REAL_MANAGED_CHAT_COMPLETIONS",
+  "G2": "PASS_SCOPED_EXACT_QUERY_ONLY_CATALOG401_POLICY",
+  "G3": "DEFERRED_BY_USER",
+  "catalogPolicy": {
+    "method": "GET",
+    "path": "/admin/v1/catalog/compliance-readonly?format=md&grpc=true",
+    "expectedStatus": 401,
+    "classification": "UNAVAILABLE_AUTH_DENIED",
+    "boundary": "Exact operator-approved catalog exception only; authenticated Search and refusals proved separately, no blanket auth bypass/admin escalation."
+  },
+  "platformDependency": {
+    "upstream": "https://github.com/chaitin/agent-compose",
+    "upstreamCommit": "043b763f05304c3a55f1bd3f4eb8504a591aa4ba",
+    "patchManifest": "integrations/agent-compose/candidate.json",
+    "vanillaUpstreamQualified": false,
+    "binaryRedistributed": false,
+    "upstreamPRPublished": false,
+    "fullAffectedRaceCommand": "go test -race -json ./pkg/runs ./pkg/execution ./pkg/schedulers ./pkg/agentcompose/adapters ./pkg/llms/runtimefacade ./pkg/agentcompose/proxy ./internal/projects -count=1 -timeout=300s",
+    "fullAffectedRaceExitCode": 1,
+    "sixPackages": "PASS",
+    "schedulerFailure": "TestSchedulerLLMAsyncRejectsFanOutBeyondOutstandingLimit",
+    "sameFailureOnUnmodifiedParent": true,
+    "schedulerEnabledInAcceptedRun": false,
+    "focusedRegression": "Canonical model-field completed command and attached-command tests failed before shared model conversion fix and passed after."
+  },
+  "historicalFailures": [
+    {
+      "attempt": "runtime-1",
+      "status": "FAIL_AUDIT_RUN_ATTRIBUTION",
+      "sealSHA256": "6304d82bbd509e133172b514c648a27fdf98f9a79e729cc56528c6cf7306592c",
+      "notReclassified": true
+    },
+    {
+      "attempt": "runtime-2",
+      "status": "BOOTSTRAP_FAILED_EXPLICIT_MODEL_OVERWRITTEN",
+      "queries": 0,
+      "modelRequests": 0
+    },
+    {
+      "attempt": "runtime-3",
+      "status": "SEARCH_OUTCOME_UNKNOWN_OPERATOR_CONTROL_FILE_OMITTED",
+      "queries": 3,
+      "modelRequests": 0,
+      "blockedReceiptRetained": true
+    }
+  ],
+  "priorRetrievalSlice": {
+    "deliverySealSHA256": "0445a5c86eb58b400b9ed91f0c576a3e35b515f40bc3d390e935ee35c7c9952f",
+    "g2": "SUPPORTED_UNDER_EXPLICIT_CATALOG_401_POLICY",
+    "originalR2AC7": "FAIL_RESOURCE_RETENTION",
+    "laterRetentionCorrection": "BOUNDED_CORRECTION_ACCEPTED",
+    "wholeS201AcceptanceInferred": false,
+    "historicalFailureWaived": false
+  },
+  "deferred": [
+    "S2-G3",
+    "S2-A07",
+    "S2-A08",
+    "S2-02-AC5"
+  ],
+  "wholeS2Complete": false,
+  "notQualified": [
+    "Actual law/source authority",
+    "Production isolation or generic DLP",
+    "Provider-internal computation, retries or full billing",
+    "Same-request live replay in this attempt",
+    "Cross-container/new-sandbox persistence",
+    "Live concurrency",
+    "Accord integration or Accepted Evidence"
+  ],
+  "publicationBoundary": "Public export is accepted CQA source, immutable synthetic business output, safe summaries, and separately licensed upstream patches. No private logs, databases, credentials, provider raw responses, customer data, source archives or platform binaries. No new business model/OctoBus/resource calls."
+}

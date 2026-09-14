@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "cqa.config/v1",
+  "storeDir": "/s2/receipts",
+  "allowSynthetic": true,
+  "networkApproved": false,
+  "timeoutSeconds": 120,
+  "knowledge": {
+    "mode": "octobus_native_s2",
+    "capset": "enterprise/compliance-readonly",
+    "instance": "compliance-kb-s2-02"
+  },
+  "generation": {
+    "mode": "llm",
+    "model": "grok-4.6",
+    "tokenEnv": "OPENAI_API_KEY"
+  },
+  "managed": {
+    "daemonOrigin": "http://cqa-s2-02-daemon:8080",
+    "project": "cqa-s2-02",
+    "role": "compliance-query"
+  },
+  "server": {
+    "listen": "127.0.0.1:8088",
+    "tokenEnv": "CQA_API_TOKEN"
+  }
+}

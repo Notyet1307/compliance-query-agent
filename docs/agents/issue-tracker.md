@@ -1,6 +1,6 @@
 # 任务系统适配
 
-当前远端：未创建/未配置。不得猜测 owner/name，不自动 gh repo create。用户建立仓库后从真实 Git remote 核验；不把本包路径或建议名当远端。
+本仓库已建立 Git 远端。发布前从当前真实 Git remote 核验 owner/name，并核对本次发布授权；不把本包路径或建议名当远端，不重复创建仓库。候选接缝与本轮执行边界见 `docs/specs/x1.md`，不据此推导发布权限。
 
 GitHub 是正式任务发布后的唯一任务状态来源。Spec 是 Git 中的行为权威，Issue 链接批准 Spec 的 commit，不复制独立可变的第二份 Spec。
 

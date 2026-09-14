@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "cqa.config/v1",
+  "storeDir": "/s2/receipts",
+  "allowSynthetic": true,
+  "networkApproved": false,
+  "timeoutSeconds": 30,
+  "knowledge": {
+    "mode": "octobus_native_x1",
+    "capset": "enterprise/compliance-readonly",
+    "instance": "compliance-kb-s2-01"
+  },
+  "generation": { "mode": "extractive" },
+  "server": { "listen": "127.0.0.1:8088", "tokenEnv": "CQA_API_TOKEN" }
+}

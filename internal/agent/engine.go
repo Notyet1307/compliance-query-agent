@@ -20,6 +20,35 @@ func NewEngine(c Config) (*Engine, error) {
 	if e := c.Validate(); e != nil {
 		return nil, e
 	}
+	var mountInfo []byte
+	if c.Managed != nil {
+		var err error
+		mountInfo, err = os.ReadFile("/proc/self/mountinfo")
+		if err != nil {
+			return nil, problem("PERSISTENT_STORE_REQUIRED", 500)
+		}
+	}
+	return newEngine(c, mountInfo)
+}
+
+func newEngine(c Config, mountInfo []byte) (*Engine, error) {
+	if err := c.Validate(); err != nil {
+		return nil, err
+	}
+	var s *Store
+	var err error
+	build := ""
+	if c.Managed != nil {
+		s, err = managedStore(c.StoreDir, mountInfo)
+		if err == nil {
+			build, err = executableDigest()
+		}
+	} else {
+		s, err = NewStore(c.StoreDir)
+	}
+	if err != nil {
+		return nil, err
+	}
 	var k Knowledge
 	var g Generator
 	localDigest := "external-at-query-time"
@@ -30,6 +59,12 @@ func NewEngine(c Config) (*Engine, error) {
 		}
 		k = localKnowledge{corpus}
 		localDigest = hashJSON(corpus)
+	} else if c.Knowledge.Mode == "octobus_native_x1" || c.Knowledge.Mode == "octobus_native_s2" {
+		native, err := newNativeKnowledge(c)
+		if err != nil {
+			return nil, err
+		}
+		k = native
 	} else {
 		token := os.Getenv(c.Knowledge.TokenEnv)
 		if len(token) < 16 || strings.ContainsAny(token, "\r\n") {
@@ -37,25 +72,29 @@ func NewEngine(c Config) (*Engine, error) {
 		}
 		k = octobusKnowledge{c.Knowledge.Endpoint, token, newHTTPClient(c.TimeoutSeconds)}
 	}
-	s, e := NewStore(c.StoreDir)
-	if e != nil {
-		return nil, e
-	}
 	if c.Generation.Mode == "extractive" {
 		g = extractiveGenerator{}
 	} else {
+		generation := c.Generation
+		if c.Managed != nil {
+			generation, err = managedGeneration(c)
+			if err != nil {
+				return nil, err
+			}
+		}
 		token := os.Getenv(c.Generation.TokenEnv)
-		if len(token) < 16 || strings.ContainsAny(token, "\r\n") {
+		if len(token) < 16 || strings.ContainsAny(token, "\r\n\t ") {
 			return nil, problem("MODEL_CREDENTIAL_MISSING", 500)
 		}
-		g = llmGenerator{c.Generation, token, newHTTPClient(c.TimeoutSeconds)}
+		g = llmGenerator{generation, token, newHTTPClient(c.TimeoutSeconds)}
 	}
 	// A rotated credential value is not hashed into public output. Stable ref is part of config.
 	d := hashJSON(struct {
-		Config       Config
-		CorpusDigest string
-		AgentVersion string
-	}{c, localDigest, Version})
+		Config           Config
+		CorpusDigest     string
+		AgentVersion     string
+		ExecutableSHA256 string `json:",omitempty"`
+	}{c, localDigest, Version, build})
 	return &Engine{c, k, g, s, d, time.Now}, nil
 }
 func (e *Engine) Query(ctx context.Context, r Request) (*Result, bool, error) {

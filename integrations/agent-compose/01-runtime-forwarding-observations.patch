@@ -1,0 +1,940 @@
+--- a/cmd/agent-compose/daemon_auth_test.go
++++ b/cmd/agent-compose/daemon_auth_test.go
+@@ -31,6 +31,8 @@
+ 		{name: "jupyter exempt", token: "secret", path: "/jupyter/s-1/lab", method: http.MethodGet, wantStatus: http.StatusNoContent},
+ 		{name: "webhook ingestion exempt", token: "secret", path: "/api/webhooks/webhook.github.push", method: http.MethodPost, wantStatus: http.StatusNoContent},
+ 		{name: "webhook management protected", token: "secret", path: "/api/webhook-sources", method: http.MethodGet, wantStatus: http.StatusUnauthorized},
++		{name: "facade observations require control token", token: "secret", header: "Bearer facade-token", path: "/api/llm/facade/observations", method: http.MethodGet, wantStatus: http.StatusUnauthorized},
++		{name: "facade observations operator access", token: "secret", header: "Bearer secret", path: "/api/llm/facade/observations", method: http.MethodGet, wantStatus: http.StatusNoContent},
+ 	}
+ 	for _, test := range tests {
+ 		t.Run(test.name, func(t *testing.T) {
+--- a/docs/design/llm_provider_catalog_design.md
++++ b/docs/design/llm_provider_catalog_design.md
+@@ -247,10 +247,32 @@
+ 模型级输出 Token 上限在 daemon 边界应用：
+ 
+ - Responses：`max_output_tokens`
+-- Chat Completions：`max_completion_tokens`
++- Chat Completions：`max_tokens` 和 `max_completion_tokens`
+ - Anthropic Messages：`max_tokens`
+ 
+ 模型级限制优先于 daemon 全局的 `LLM_MAX_OUTPUT_TOKENS` fallback。
++
++### Runtime 转发保护与观测
++
++Runtime facade 的默认客户端及 daemon 使用的 `NewRuntimeLLMHTTPClient` 不读取环境代理、不跟随 HTTP 重定向；保留 TLS 证书验证、响应头超时及流式响应无总时限的既有行为。重定向响应原样返回，不向 `Location` 再发送请求。这是有意的兼容性变化：依赖 `HTTP_PROXY` / `HTTPS_PROXY` 的上游配置不再适用于此客户端。可信代码注入的自定义 `HTTPDoer` 必须自行遵守同一保护及 `httptrace` 契约。
++
++`GET /api/llm/facade/observations` 是只读控制面接口，返回 `Cache-Control: no-store`；不属于 runtime token 豁免路径。启用 daemon control token 后，facade token 不能访问它。未配置 daemon auth 时仍遵循既有“控制面认证关闭”的规则，因此受限部署必须配置独立、非空的 control token。
++
++快照只有固定大小、进程内全局累计计数，不保留无限增长的 run 映射，不写数据库。`epoch` 在重新注册／重启后变化，`sequence` 对审计事件排序；不同 epoch 的快照不可相减。
++
++- `ingress` / `accepted`：路由收到请求／完成 token、sandbox、正文和目标解析；不是 token 签发次数。
++- `attempts`：进入共享出站 `Do` 边界的次数。
++- `request_writes` / `write_errors`：`httptrace.WroteRequest` 报告的完整请求写入／写入错误；一次 `Do` 若有底层重试，回调次数可能超过一次。完整写入不等于 provider 已执行或已计费。
++- `response_headers`：收到上游响应头，包括非 2xx；不代表正文完整或业务成功。
++- `unknown_outcomes`：`Do` 失败、响应正文发生非 EOF 读取错误（包括截断／取消），或未观察到上游真实 EOF 就关闭正文；每个正文只记一次未知。客户端写出失败、读取上限及协议层提前结束都不能替代 HTTP EOF，不能据此推断上游未执行；`unobserved_writes`：handler 返回前出站尝试没有写入回调，包括自定义 transport 不提供 trace 或回调延迟。后续回调不会抹去这次不确定性。
++- `active` / `finished`：handler 尚未返回／已经返回；不是 provider 任务状态。
++- `audit_errors`：日志级别禁用 Info 或日志 Handler 报错导致的审计缺失。日志系统静默丢弃、进程崩溃和外部账单仍须另行核验。
++
++审计事件 `runtime_llm_observation` 使用 daemon 生成的 `request_id`，授权后绑定 token 中的 sandbox/run、解析后的 provider 和入站／出站协议。不会记录 URL、调用方提供的模型名、token／指纹、正文、Header 或完整错误。
++
++仅在独占的受限 daemon、相同 epoch、前后 `active=0`，且累计 `unknown_outcomes`、`unobserved_writes`、`write_errors`、`audit_errors` 均为零时，才能用稳定快照及完整审计记录判定区间内是否新增转发。必须分别比较入口、attempt 和 request-write 增量；不要把缺少日志当作零，也不要把“零新 HTTP 转发”提升为“上游没有继续计算／没有新增账单”。接口没有清零操作。
++
++不配置模型级输出上限且不设置 `LLM_MAX_OUTPUT_TOKENS` 时，同协议 Chat 转发保留调用方的 `max_tokens`，不会因本次保护／计数改动新增 `max_completion_tokens` 或协议适配器。
+ 
+ ## 持久化与迁移
+ 
+--- a/pkg/agentcompose/proxy/runtime_llm.go
++++ b/pkg/agentcompose/proxy/runtime_llm.go
+@@ -11,6 +11,7 @@
+ 	"time"
+ 
+ 	protocolbridge "github.com/chaitin/ai-api-protocol-bridge"
++	"github.com/google/uuid"
+ 	"github.com/labstack/echo/v4"
+ 
+ 	"github.com/chaitin/agent-compose/pkg/llms"
+@@ -44,14 +45,20 @@
+ }
+ 
+ func RegisterRuntimeLLMFacadeRoutes(app *echo.Echo, opts RuntimeLLMOptions) {
+-	handler := runtimeLLMHandler{opts: opts}
++	handler := runtimeLLMHandler{
++		opts:         opts,
++		observations: &runtimeLLMObservations{counts: runtimeLLMCounters{Epoch: uuid.NewString()}},
++	}
++	// A control-plane route, deliberately outside the token-exempt runtime paths.
++	app.GET("/api/llm/facade/observations", handler.observations.snapshot)
+ 	app.POST("/api/runtime/sandboxes/:sandbox_id/llm/openai/v1/responses", handler.handleResponses)
+ 	app.POST("/api/runtime/sandboxes/:sandbox_id/llm/openai/v1/chat/completions", handler.handleChatCompletions)
+ 	app.POST("/api/runtime/sandboxes/:sandbox_id/llm/anthropic/v1/messages", handler.handleAnthropicMessages)
+ }
+ 
+ type runtimeLLMHandler struct {
+-	opts RuntimeLLMOptions
++	opts         RuntimeLLMOptions
++	observations *runtimeLLMObservations
+ }
+ 
+ func (h runtimeLLMHandler) handleResponses(c echo.Context) error {
+@@ -76,6 +83,8 @@
+ 	Target           llms.ResolvedTarget
+ 	UpstreamProtocol protocolbridge.Protocol
+ 	UpstreamEndpoint string
++	SandboxID        string
++	RunID            string
+ }
+ 
+ // authorizeAndResolveRuntimeLLMRequest validates the caller's facade token,
+@@ -150,14 +159,23 @@
+ 		Target:           target,
+ 		UpstreamProtocol: upstreamProtocol,
+ 		UpstreamEndpoint: upstreamEndpoint,
++		SandboxID:        token.SandboxID,
++		RunID:            token.RunID,
+ 	}, false, nil
+ }
+ 
+ func (h runtimeLLMHandler) handle(c echo.Context, inboundProtocol protocolbridge.Protocol, facadeWireAPI string) error {
++	observation := h.observations.start(facadeWireAPI)
++	defer observation.finish()
+ 	resolved, handled, err := h.authorizeAndResolveRuntimeLLMRequest(c, inboundProtocol, facadeWireAPI)
+ 	if handled {
+ 		return err
+ 	}
++	observation.sandboxID = resolved.SandboxID
++	observation.runID = resolved.RunID
++	observation.providerID = resolved.Target.Provider.ID
++	observation.upstreamWireAPI = string(resolved.UpstreamProtocol)
++	observation.record("accepted", 0)
+ 	inboundAdapter, llmReq, body := resolved.InboundAdapter, resolved.LLMRequest, resolved.Body
+ 	target, upstreamProtocol, upstreamEndpoint := resolved.Target, resolved.UpstreamProtocol, resolved.UpstreamEndpoint
+ 
+@@ -173,6 +191,7 @@
+ 			Body:             upstreamBody,
+ 			Target:           target,
+ 			UpstreamProtocol: upstreamProtocol,
++			Observation:      observation,
+ 		})
+ 	}
+ 	upstreamBody, err := llms.EncodeRuntimeUpstreamRequest(inboundProtocol, upstreamProtocol, target, llmReq)
+@@ -187,7 +206,7 @@
+ 	}
+ 	llms.CopyRuntimeHeaders(upstreamReq.Header, c.Request().Header)
+ 	llms.ApplyForwardHeaders(upstreamReq.Header, target.Headers)
+-	resp, err := h.httpClient().Do(upstreamReq)
++	resp, err := h.forward(upstreamReq, observation)
+ 	if err != nil {
+ 		return c.JSON(http.StatusBadGateway, map[string]string{"error": "call upstream llm failed"})
+ 	}
+@@ -276,6 +295,7 @@
+ 	Body             []byte
+ 	Target           llms.ResolvedTarget
+ 	UpstreamProtocol protocolbridge.Protocol
++	Observation      *runtimeLLMObservation
+ }
+ 
+ func (h runtimeLLMHandler) proxyTransparent(c echo.Context, req proxyTransparentRequest) error {
+@@ -286,7 +306,7 @@
+ 	}
+ 	llms.CopyRuntimeHeaders(upstreamReq.Header, c.Request().Header)
+ 	llms.ApplyForwardHeaders(upstreamReq.Header, target.Headers)
+-	resp, err := h.httpClient().Do(upstreamReq)
++	resp, err := h.forward(upstreamReq, req.Observation)
+ 	if err != nil {
+ 		return c.JSON(http.StatusBadGateway, map[string]string{"error": "call upstream llm failed"})
+ 	}
+@@ -329,7 +349,7 @@
+ 	if h.opts.Client != nil {
+ 		return h.opts.Client
+ 	}
+-	return http.DefaultClient
++	return defaultRuntimeLLMHTTPClient
+ }
+ 
+ func WriteRuntimeLLMEncodedError(c echo.Context, raw []byte, status int) error {
+--- a/pkg/agentcompose/proxy/runtime_llm_client.go
++++ b/pkg/agentcompose/proxy/runtime_llm_client.go
+@@ -7,8 +7,17 @@
+ 
+ // NewRuntimeLLMHTTPClient creates an upstream client that bounds the wait for
+ // response headers without imposing a total deadline on streaming responses.
++// Forward only to the resolved provider: no ambient proxies or redirects.
+ func NewRuntimeLLMHTTPClient(responseHeaderTimeout time.Duration) *http.Client {
+ 	transport := http.DefaultTransport.(*http.Transport).Clone()
++	transport.Proxy = nil
+ 	transport.ResponseHeaderTimeout = responseHeaderTimeout
+-	return &http.Client{Transport: transport}
++	return &http.Client{
++		Transport: transport,
++		CheckRedirect: func(*http.Request, []*http.Request) error {
++			return http.ErrUseLastResponse
++		},
++	}
+ }
++
++var defaultRuntimeLLMHTTPClient = NewRuntimeLLMHTTPClient(0)
+--- a/pkg/agentcompose/proxy/runtime_llm_client_test.go
++++ b/pkg/agentcompose/proxy/runtime_llm_client_test.go
+@@ -1,23 +1,55 @@
+ package proxy
+ 
+ import (
++	"context"
++	"errors"
++	"io"
++	"net"
+ 	"net/http"
++	"net/http/httptest"
+ 	"testing"
+ 	"time"
+ )
+ 
+ func TestNewRuntimeLLMHTTPClientDoesNotLimitStreamingResponseDuration(t *testing.T) {
+-	timeout := 45 * time.Second
+-	client := NewRuntimeLLMHTTPClient(timeout)
+-
+-	if client.Timeout != 0 {
+-		t.Fatalf("client timeout = %s, want no total request timeout", client.Timeout)
+-	}
+-	transport, ok := client.Transport.(*http.Transport)
+-	if !ok {
+-		t.Fatalf("client transport type = %T, want *http.Transport", client.Transport)
+-	}
+-	if transport.ResponseHeaderTimeout != timeout {
+-		t.Fatalf("response header timeout = %s, want %s", transport.ResponseHeaderTimeout, timeout)
+-	}
++	t.Run("headers have a deadline", func(t *testing.T) {
++		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { <-r.Context().Done() }))
++		defer server.Close()
++		client := NewRuntimeLLMHTTPClient(100 * time.Millisecond)
++		defer client.CloseIdleConnections()
++		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
++		defer cancel()
++		request, err := http.NewRequestWithContext(ctx, http.MethodGet, server.URL, nil)
++		if err != nil {
++			t.Fatal(err)
++		}
++		response, err := client.Do(request)
++		if response != nil {
++			response.Body.Close()
++		}
++		var timeout net.Error
++		if !errors.As(err, &timeout) || !timeout.Timeout() || ctx.Err() != nil {
++			t.Fatalf("header deadline was not enforced: %v", err)
++		}
++	})
++	t.Run("body outlives header deadline", func(t *testing.T) {
++		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++			w.WriteHeader(200)
++			w.(http.Flusher).Flush()
++			time.Sleep(300 * time.Millisecond)
++			io.WriteString(w, "complete stream")
++		}))
++		defer server.Close()
++		client := NewRuntimeLLMHTTPClient(100 * time.Millisecond)
++		defer client.CloseIdleConnections()
++		response, err := client.Get(server.URL)
++		if err != nil {
++			t.Fatal(err)
++		}
++		defer response.Body.Close()
++		body, err := io.ReadAll(response.Body)
++		if err != nil || string(body) != "complete stream" {
++			t.Fatalf("stream cut off: %q %v", body, err)
++		}
++	})
+ }
+--- a/pkg/agentcompose/proxy/runtime_llm_coverage_test.go
++++ b/pkg/agentcompose/proxy/runtime_llm_coverage_test.go
+@@ -522,9 +522,6 @@
+ 		})
+ 	}
+ 
+-	if (runtimeLLMHandler{}).httpClient() == nil {
+-		t.Fatalf("default runtime llm http client is nil")
+-	}
+ 	if firstNonEmpty("", " \t ") != "" {
+ 		t.Fatalf("firstNonEmpty returned a blank value")
+ 	}
+--- /dev/null
++++ b/pkg/agentcompose/proxy/runtime_llm_observations.go
+@@ -0,0 +1,174 @@
++package proxy
++
++import (
++	"context"
++	"io"
++	"log/slog"
++	"net/http"
++	"net/http/httptrace"
++	"sync"
++	"sync/atomic"
++	"time"
++
++	"github.com/google/uuid"
++	"github.com/labstack/echo/v4"
++)
++
++// Counts are process-local, monotonic and global to this facade registration.
++// Compare snapshots only within one epoch. Writes mean successful HTTP request
++// writes, NOT provider execution or billing. Unknown/unobserved work is not zero.
++type runtimeLLMCounters struct {
++	Epoch            string `json:"epoch"`
++	Sequence         uint64 `json:"sequence"`
++	Ingress          uint64 `json:"ingress"`
++	Accepted         uint64 `json:"accepted"`
++	Attempts         uint64 `json:"attempts"`
++	RequestWrites    uint64 `json:"request_writes"`
++	WriteErrors      uint64 `json:"write_errors"`
++	ResponseHeaders  uint64 `json:"response_headers"`
++	UnknownOutcomes  uint64 `json:"unknown_outcomes"`
++	UnobservedWrites uint64 `json:"unobserved_writes"`
++	Finished         uint64 `json:"finished"`
++	Active           uint64 `json:"active"`
++	AuditErrors      uint64 `json:"audit_errors"`
++}
++
++type runtimeLLMObservations struct {
++	// ponytail: one short lock orders counters and audit records; revisit only
++	// if the audit sink becomes a throughput bottleneck. Never hold across I/O
++	// to the provider, and never keep an unbounded per-run counter map.
++	mu     sync.Mutex
++	counts runtimeLLMCounters
++}
++
++type runtimeLLMObservation struct {
++	owner                                                      *runtimeLLMObservations
++	id, sandboxID, runID, providerID, wireAPI, upstreamWireAPI string
++	attempted                                                  bool // guarded by owner.mu, including httptrace callbacks
++	writeEvents                                                uint64
++}
++
++func (s *runtimeLLMObservations) snapshot(c echo.Context) error {
++	s.mu.Lock()
++	counts := s.counts
++	s.mu.Unlock()
++	c.Response().Header().Set("Cache-Control", "no-store")
++	return c.JSON(http.StatusOK, counts)
++}
++
++func (s *runtimeLLMObservations) start(wireAPI string) *runtimeLLMObservation {
++	o := &runtimeLLMObservation{owner: s, id: uuid.NewString(), wireAPI: wireAPI}
++	o.record("ingress", 0)
++	return o
++}
++
++func (o *runtimeLLMObservation) record(event string, status int) {
++	s := o.owner
++	s.mu.Lock()
++	defer s.mu.Unlock()
++	s.counts.Sequence++
++	switch event {
++	case "ingress":
++		s.counts.Ingress++
++		s.counts.Active++
++	case "accepted":
++		s.counts.Accepted++
++	case "attempt":
++		s.counts.Attempts++
++		o.attempted = true
++	case "request_written":
++		s.counts.RequestWrites++
++		o.writeEvents++
++	case "write_error":
++		s.counts.WriteErrors++
++		o.writeEvents++
++	case "response_headers":
++		s.counts.ResponseHeaders++
++	case "unknown":
++		s.counts.UnknownOutcomes++
++	case "write_unobserved":
++		s.counts.UnobservedWrites++
++	case "finished":
++		s.counts.Finished++
++		s.counts.Active--
++	}
++	// No URL, model supplied by the caller, token/fingerprint, request/response
++	// payload, header or raw error. Correlation comes from the validated token.
++	logger := slog.Default()
++	ctx := context.Background()
++	if !logger.Enabled(ctx, slog.LevelInfo) {
++		s.counts.AuditErrors++
++		return
++	}
++	record := slog.NewRecord(time.Now(), slog.LevelInfo, "runtime_llm_observation", 0)
++	record.AddAttrs(slog.String("epoch", s.counts.Epoch), slog.Uint64("sequence", s.counts.Sequence),
++		slog.String("event", event), slog.String("request_id", o.id),
++		slog.String("sandbox_id", o.sandboxID), slog.String("run_id", o.runID),
++		slog.String("provider_id", o.providerID), slog.String("wire_api", o.wireAPI),
++		slog.String("upstream_wire_api", o.upstreamWireAPI),
++		slog.Int("upstream_status", status))
++	if err := logger.Handler().Handle(ctx, record); err != nil {
++		s.counts.AuditErrors++
++	}
++}
++
++func (o *runtimeLLMObservation) finish() {
++	o.owner.mu.Lock()
++	missing := o.attempted && o.writeEvents == 0
++	o.owner.mu.Unlock()
++	if missing {
++		// Custom transports may omit httptrace; callbacks may also arrive late.
++		// Keep the uncertainty even if a later callback supplies more evidence.
++		o.record("write_unobserved", 0)
++	}
++	o.record("finished", 0)
++}
++
++// Both the transparent and protocol-bridge paths pass through this boundary.
++func (h runtimeLLMHandler) forward(req *http.Request, o *runtimeLLMObservation) (*http.Response, error) {
++	trace := &httptrace.ClientTrace{WroteRequest: func(info httptrace.WroteRequestInfo) {
++		if info.Err != nil {
++			o.record("write_error", 0)
++		} else {
++			o.record("request_written", 0)
++		}
++	}}
++	req = req.WithContext(httptrace.WithClientTrace(req.Context(), trace))
++	o.record("attempt", 0)
++	response, err := h.httpClient().Do(req)
++	if err != nil {
++		o.record("unknown", 0)
++	} else {
++		// This is receipt of headers, not proof of a complete response body.
++		o.record("response_headers", response.StatusCode)
++		response.Body = &runtimeLLMResponseBody{ReadCloser: response.Body, observation: o}
++	}
++	return response, err
++}
++
++type runtimeLLMResponseBody struct {
++	io.ReadCloser
++	observation *runtimeLLMObservation
++	readError   sync.Once
++	sawEOF      atomic.Bool
++}
++
++func (b *runtimeLLMResponseBody) Read(p []byte) (int, error) {
++	n, err := b.ReadCloser.Read(p)
++	if err == io.EOF {
++		b.sawEOF.Store(true)
++	} else if err != nil {
++		b.readError.Do(func() { b.observation.record("unknown", 0) })
++	}
++	return n, err
++}
++
++func (b *runtimeLLMResponseBody) Close() error {
++	// A synthetic EOF from a limit or a downstream write failure must not
++	// imply that the upstream response completed. Close also unblocks Read.
++	err := b.ReadCloser.Close()
++	if !b.sawEOF.Load() {
++		b.readError.Do(func() { b.observation.record("unknown", 0) })
++	}
++	return err
++}
+--- /dev/null
++++ b/pkg/agentcompose/proxy/runtime_llm_observations_test.go
+@@ -0,0 +1,390 @@
++package proxy
++
++import (
++	"bytes"
++	"context"
++	"encoding/json"
++	"io"
++	"log/slog"
++	"net/http"
++	"net/http/httptest"
++	"reflect"
++	"strings"
++	"sync"
++	"sync/atomic"
++	"testing"
++	"time"
++
++	"github.com/chaitin/agent-compose/pkg/llms"
++	domain "github.com/chaitin/agent-compose/pkg/model"
++	"github.com/labstack/echo/v4"
++)
++
++const observationChatBody = `{"model":"grok-4.6","messages":[{"role":"user","content":"synthetic-private-body"}],"stream":false,"max_tokens":2048,"response_format":{"type":"json_object"}}`
++const observationChatResponse = `{"id":"chat-1","object":"chat.completion","model":"grok-4.6","choices":[{"index":0,"message":{"role":"assistant","content":"synthetic-private-response"},"finish_reason":"stop"}]}`
++
++func observedFacade(upstream, wire string) *echo.Echo {
++	e := echo.New()
++	RegisterRuntimeLLMFacadeRoutes(e, RuntimeLLMOptions{
++		Tokens:    fakeRuntimeLLMTokens{token: llms.FacadeToken{SandboxID: "sandbox-1", RunID: "run-1", ProviderID: "baizhi", WireAPI: wire}},
++		Sandboxes: fakeRuntimeLLMSessions{session: &domain.Sandbox{Summary: domain.SandboxSummary{ID: "sandbox-1", VMStatus: domain.VMStatusRunning}}},
++		ResolveTarget: func(context.Context, string, string) (llms.ResolvedTarget, error) {
++			return llms.ResolvedTarget{Provider: llms.Provider{ID: "baizhi", ProviderType: llms.ProviderFamilyOpenAI, BaseURL: upstream + "/v1"}, Model: llms.Model{Name: "grok-4.6"}, WireAPI: llms.APIProtocolChatCompletions, Headers: http.Header{"Authorization": {"Bearer synthetic-provider-secret"}}}, nil
++		},
++	}) // Exercise the secured default as well as the daemon's factory.
++	return e
++}
++
++func observationSnapshot(t *testing.T, e *echo.Echo) runtimeLLMCounters {
++	t.Helper()
++	r := httptest.NewRecorder()
++	e.ServeHTTP(r, httptest.NewRequest(http.MethodGet, "/api/llm/facade/observations", nil))
++	if r.Code != 200 || r.Header().Get("Cache-Control") != "no-store" {
++		t.Fatalf("snapshot status=%d headers=%v", r.Code, r.Header())
++	}
++	var counts runtimeLLMCounters
++	if err := json.Unmarshal(r.Body.Bytes(), &counts); err != nil {
++		t.Fatal(err)
++	}
++	return counts
++}
++
++func observedRequest(e *echo.Echo, path, body, token string, ctx context.Context) int {
++	r := httptest.NewRequest(http.MethodPost, "/api/runtime/sandboxes/sandbox-1/llm/openai/v1/"+path, strings.NewReader(body)).WithContext(ctx)
++	if token != "" {
++		r.Header.Set("Authorization", "Bearer "+token)
++	}
++	r.Header.Set("Content-Type", "application/json")
++	w := httptest.NewRecorder()
++	e.ServeHTTP(w, r)
++	return w.Code
++}
++
++type observationLog struct {
++	mu sync.Mutex
++	bytes.Buffer
++}
++
++func (b *observationLog) Write(p []byte) (int, error) {
++	b.mu.Lock()
++	defer b.mu.Unlock()
++	return b.Buffer.Write(p)
++}
++func (b *observationLog) text() string { b.mu.Lock(); defer b.mu.Unlock(); return b.Buffer.String() }
++
++func TestRuntimeLLMObservedForwarding(t *testing.T) {
++	var audit observationLog
++	previous := slog.Default()
++	slog.SetDefault(slog.New(slog.NewJSONHandler(&audit, nil)))
++	defer slog.SetDefault(previous)
++	for _, wire := range []string{llms.APIProtocolChatCompletions, llms.APIProtocolResponses} {
++		t.Run(wire, func(t *testing.T) {
++			var received atomic.Int32
++			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++				received.Add(1)
++				body, err := io.ReadAll(r.Body)
++				if err != nil {
++					t.Error(err)
++					return
++				}
++				if r.URL.Path != "/v1/chat/completions" {
++					t.Errorf("unexpected path %s", r.URL.Path)
++				}
++				if wire == llms.APIProtocolChatCompletions {
++					var actual, expected map[string]any
++					if err := json.Unmarshal(body, &actual); err != nil {
++						t.Error(err)
++					}
++					json.Unmarshal([]byte(observationChatBody), &expected)
++					if !reflect.DeepEqual(actual, expected) {
++						t.Errorf("Chat envelope changed: %s", body)
++					}
++				}
++				w.Header().Set("Content-Type", "application/json")
++				io.WriteString(w, observationChatResponse)
++			}))
++			defer upstream.Close()
++			e := observedFacade(upstream.URL, wire)
++			baseline := observationSnapshot(t, e)
++			if baseline.Ingress != 0 || baseline.Attempts != 0 || baseline.RequestWrites != 0 {
++				t.Fatalf("registration counted as use: %+v", baseline)
++			}
++			path, body := "chat/completions", observationChatBody
++			if wire == llms.APIProtocolResponses {
++				path, body = "responses", `{"model":"grok-4.6","input":"synthetic-private-body"}`
++			}
++			if status := observedRequest(e, path, body, "synthetic-facade-secret", context.Background()); status != 200 {
++				t.Fatalf("status=%d", status)
++			}
++			after := observationSnapshot(t, e)
++			if received.Load() != 1 || after.Ingress != 1 || after.Accepted != 1 || after.Attempts != 1 || after.RequestWrites != 1 || after.ResponseHeaders != 1 || after.Finished != 1 || after.Active != 0 || after.UnknownOutcomes != 0 || after.UnobservedWrites != 0 || after.WriteErrors != 0 || after.AuditErrors != 0 {
++				t.Fatalf("receiver=%d snapshot=%+v", received.Load(), after)
++			}
++			if next := observationSnapshot(t, e); next != after {
++				t.Fatalf("no request changed counters: %+v -> %+v", after, next)
++			}
++			if other := observationSnapshot(t, observedFacade(upstream.URL, wire)); other.Epoch == after.Epoch {
++				t.Fatal("new registration reused epoch")
++			}
++			if status := observedRequest(e, path, body, "", context.Background()); status != 401 {
++				t.Fatalf("missing token status=%d", status)
++			}
++			if status := observedRequest(e, path, `{"model":`, "synthetic-facade-secret", context.Background()); status < 400 {
++				t.Fatalf("malformed body status=%d", status)
++			}
++			denied := observationSnapshot(t, e)
++			if denied.Ingress != 3 || denied.Accepted != 1 || denied.Attempts != 1 || denied.RequestWrites != 1 || received.Load() != 1 || denied.Active != 0 {
++				t.Fatalf("denied/malformed forwarded: %+v", denied)
++			}
++		})
++	}
++	text := audit.text()
++	for _, secret := range []string{"synthetic-private-body", "synthetic-private-response", "synthetic-provider-secret", "synthetic-facade-secret"} {
++		if strings.Contains(text, secret) {
++			t.Fatalf("sensitive content in audit: %s", secret)
++		}
++	}
++	seen := map[string]map[string]bool{}
++	for _, line := range strings.Split(strings.TrimSpace(text), "\n") {
++		var row map[string]any
++		if err := json.Unmarshal([]byte(line), &row); err != nil {
++			t.Fatal(err)
++		}
++		if row["event"] == "request_written" {
++			if row["sandbox_id"] != "sandbox-1" || row["run_id"] != "run-1" || row["provider_id"] != "baizhi" || row["upstream_wire_api"] == "" {
++				t.Fatalf("lost forwarding correlation: %v", row)
++			}
++		}
++		id, _ := row["request_id"].(string)
++		event, _ := row["event"].(string)
++		if id == "" {
++			t.Fatal("missing server-generated request id")
++		}
++		if seen[id] == nil {
++			seen[id] = map[string]bool{}
++		}
++		seen[id][event] = true
++	}
++	for id, events := range seen {
++		if events["request_written"] && (!events["ingress"] || !events["accepted"] || !events["attempt"] || !events["response_headers"] || !events["finished"]) {
++			t.Fatalf("incomplete correlation %s: %v", id, events)
++		}
++	}
++}
++
++func TestRuntimeLLMObservedRedirectAndUnknown(t *testing.T) {
++	for _, wire := range []string{llms.APIProtocolChatCompletions, llms.APIProtocolResponses} {
++		t.Run(wire, func(t *testing.T) {
++			var escaped atomic.Int32
++			sink := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { escaped.Add(1); w.WriteHeader(204) }))
++			defer sink.Close()
++			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++				io.Copy(io.Discard, r.Body)
++				http.Redirect(w, r, sink.URL, 307)
++			}))
++			defer upstream.Close()
++			e := observedFacade(upstream.URL, wire)
++			path, body := "chat/completions", observationChatBody
++			if wire == llms.APIProtocolResponses {
++				path, body = "responses", `{"model":"grok-4.6","input":"hi"}`
++			}
++			if status := observedRequest(e, path, body, "fixture", context.Background()); status != 307 {
++				t.Fatalf("redirect status=%d", status)
++			}
++			counts := observationSnapshot(t, e)
++			if escaped.Load() != 0 || counts.Attempts != 1 || counts.RequestWrites != 1 || counts.ResponseHeaders != 1 {
++				t.Fatalf("redirect escaped=%d counts=%+v", escaped.Load(), counts)
++			}
++			ctx, cancel := context.WithCancel(context.Background())
++			cancel()
++			if status := observedRequest(e, path, body, "fixture", ctx); status != 502 {
++				t.Fatalf("cancel status=%d", status)
++			}
++			counts = observationSnapshot(t, e)
++			if counts.Attempts != 2 || counts.RequestWrites != 1 || counts.UnknownOutcomes != 1 || counts.UnobservedWrites != 1 || counts.Active != 0 {
++				t.Fatalf("cancellation converted to zero: %+v", counts)
++			}
++		})
++	}
++}
++
++func TestRuntimeLLMObservedConcurrentRequests(t *testing.T) {
++	entered := make(chan struct{}, 8)
++	release := make(chan struct{})
++	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		io.Copy(io.Discard, r.Body)
++		entered <- struct{}{}
++		<-release
++		w.Header().Set("Content-Type", "application/json")
++		io.WriteString(w, observationChatResponse)
++	}))
++	defer upstream.Close()
++	e := observedFacade(upstream.URL, llms.APIProtocolChatCompletions)
++	statuses := make(chan int, 8)
++	for i := 0; i < 8; i++ {
++		go func() {
++			statuses <- observedRequest(e, "chat/completions", observationChatBody, "fixture", context.Background())
++		}()
++	}
++	for i := 0; i < 8; i++ {
++		select {
++		case <-entered:
++		case <-time.After(5 * time.Second):
++			close(release)
++			t.Fatal("requests did not reach controlled upstream")
++		}
++	}
++	active := observationSnapshot(t, e)
++	close(release)
++	if active.Active != 8 || active.Attempts != 8 || active.ResponseHeaders != 0 {
++		t.Fatalf("lost active work: %+v", active)
++	}
++	for i := 0; i < 8; i++ {
++		if status := <-statuses; status != 200 {
++			t.Fatalf("status=%d", status)
++		}
++	}
++	final := observationSnapshot(t, e)
++	if final.Ingress != 8 || final.Attempts != 8 || final.RequestWrites != 8 || final.ResponseHeaders != 8 || final.Finished != 8 || final.Active != 0 {
++		t.Fatalf("lost concurrent counters: %+v", final)
++	}
++}
++
++type failedObservationWriter struct{}
++
++func (failedObservationWriter) Write([]byte) (int, error) { return 0, io.ErrClosedPipe }
++
++func TestRuntimeLLMObservationFailuresStayVisible(t *testing.T) {
++	previous := slog.Default()
++	defer slog.SetDefault(previous)
++	for _, handler := range []slog.Handler{
++		slog.NewJSONHandler(failedObservationWriter{}, nil),
++		slog.NewJSONHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}),
++	} {
++		slog.SetDefault(slog.New(handler))
++		e := observedFacade("http://127.0.0.1:1", llms.APIProtocolChatCompletions)
++		if status := observedRequest(e, "chat/completions", observationChatBody, "", context.Background()); status != 401 {
++			t.Fatalf("status=%d", status)
++		}
++		counts := observationSnapshot(t, e)
++		if counts.AuditErrors == 0 || counts.Attempts != 0 || counts.Ingress != 1 {
++			t.Fatalf("audit failure concealed: %+v", counts)
++		}
++	}
++}
++
++func TestRuntimeLLMRequestWrittenButOutcomeUnknown(t *testing.T) {
++	var received atomic.Int32
++	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		io.Copy(io.Discard, r.Body)
++		received.Add(1)
++		connection, _, err := w.(http.Hijacker).Hijack()
++		if err != nil {
++			t.Error(err)
++			return
++		}
++		connection.Close() // The provider may have executed; no response confirms it.
++	}))
++	defer upstream.Close()
++	e := observedFacade(upstream.URL, llms.APIProtocolChatCompletions)
++	if status := observedRequest(e, "chat/completions", observationChatBody, "fixture", context.Background()); status != 502 {
++		t.Fatalf("status=%d", status)
++	}
++	counts := observationSnapshot(t, e)
++	if received.Load() != 1 || counts.Attempts != 1 || counts.RequestWrites != 1 || counts.UnknownOutcomes != 1 || counts.ResponseHeaders != 0 || counts.Active != 0 {
++		t.Fatalf("lost ambiguous forward: received=%d counts=%+v", received.Load(), counts)
++	}
++}
++
++func TestRuntimeLLMTruncatedResponseRemainsUnknown(t *testing.T) {
++	for _, wire := range []string{llms.APIProtocolChatCompletions, llms.APIProtocolResponses} {
++		t.Run(wire, func(t *testing.T) {
++			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++				io.Copy(io.Discard, r.Body)
++				w.Header().Set("Content-Length", "1000")
++				io.WriteString(w, "{") // Headers alone are not a complete outcome.
++			}))
++			defer upstream.Close()
++			e := observedFacade(upstream.URL, wire)
++			path, body := "chat/completions", observationChatBody
++			if wire == llms.APIProtocolResponses {
++				path, body = "responses", `{"model":"grok-4.6","input":"hi"}`
++			}
++			observedRequest(e, path, body, "fixture", context.Background())
++			counts := observationSnapshot(t, e)
++			if counts.RequestWrites != 1 || counts.ResponseHeaders != 1 || counts.UnknownOutcomes != 1 || counts.Active != 0 {
++				t.Fatalf("truncated response treated as certain: %+v", counts)
++			}
++		})
++	}
++}
++
++type failedObservationResponse struct{ *httptest.ResponseRecorder }
++
++func (failedObservationResponse) Write([]byte) (int, error) { return 0, io.ErrClosedPipe }
++
++func TestRuntimeLLMClientWriteAbortRemainsUnknown(t *testing.T) {
++	for _, wire := range []string{llms.APIProtocolChatCompletions, llms.APIProtocolResponses} {
++		t.Run(wire, func(t *testing.T) {
++			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++				io.Copy(io.Discard, r.Body)
++				w.Header().Set("Content-Type", "text/event-stream")
++				io.WriteString(w, "data: {\"id\":\"partial\",\"object\":\"chat.completion.chunk\",\"model\":\"grok-4.6\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"partial\"}}]}\n\n")
++				w.(http.Flusher).Flush()
++				select {
++				case <-r.Context().Done():
++				case <-time.After(5 * time.Second):
++					t.Error("provider stream was not closed after client write failure")
++				}
++			}))
++			defer upstream.Close()
++			e := observedFacade(upstream.URL, wire)
++			path, body := "chat/completions", `{"model":"grok-4.6","messages":[{"role":"user","content":"hi"}],"stream":true}`
++			if wire == llms.APIProtocolResponses {
++				path, body = "responses", `{"model":"grok-4.6","input":"hi","stream":true}`
++			}
++			r := httptest.NewRequest(http.MethodPost, "/api/runtime/sandboxes/sandbox-1/llm/openai/v1/"+path, strings.NewReader(body))
++			r.Header.Set("Authorization", "Bearer fixture")
++			r.Header.Set("Content-Type", "application/json")
++			e.ServeHTTP(failedObservationResponse{httptest.NewRecorder()}, r)
++			counts := observationSnapshot(t, e)
++			if counts.RequestWrites != 1 || counts.ResponseHeaders != 1 || counts.UnknownOutcomes != 1 || counts.Active != 0 {
++				t.Fatalf("client write abort treated as completed upstream: %+v", counts)
++			}
++		})
++	}
++}
++
++func TestRuntimeLLMLimitedReadIsNotUpstreamEOF(t *testing.T) {
++	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		io.Copy(io.Discard, r.Body)
++		io.WriteString(w, "abc")
++	}))
++	defer upstream.Close()
++	s := &runtimeLLMObservations{counts: runtimeLLMCounters{Epoch: "limited-read"}}
++	o := s.start(llms.APIProtocolChatCompletions)
++	h := runtimeLLMHandler{observations: s}
++	request, err := http.NewRequest(http.MethodPost, upstream.URL, strings.NewReader("{}"))
++	if err != nil {
++		t.Fatal(err)
++	}
++	response, err := h.forward(request, o)
++	if err != nil {
++		t.Fatal(err)
++	}
++	// Exercise the same synthetic EOF as the handler's64MiB LimitReader,
++	// without keeping a64MiB fixture/allocation in the regression suite.
++	body, err := io.ReadAll(io.LimitReader(response.Body, 1))
++	if err != nil || string(body) != "a" {
++		t.Fatalf("limited read: %q %v", body, err)
++	}
++	response.Body.Close()
++	response.Body.Close() // Repeated close must not count one outcome twice.
++	o.finish()
++	e := echo.New()
++	e.GET("/api/llm/facade/observations", s.snapshot)
++	counts := observationSnapshot(t, e)
++	if counts.RequestWrites != 1 || counts.UnknownOutcomes != 1 || counts.Active != 0 {
++		t.Fatalf("synthetic EOF concealed unconsumed response: %+v", counts)
++	}
++}
+--- /dev/null
++++ b/pkg/agentcompose/proxy/runtime_llm_policy_test.go
+@@ -0,0 +1,107 @@
++package proxy
++
++import (
++	"context"
++	"fmt"
++	"io"
++	"net"
++	"net/http"
++	"net/http/httptest"
++	"os"
++	"os/exec"
++	"strings"
++	"sync/atomic"
++	"testing"
++	"time"
++)
++
++func TestRuntimeLLMRejectsRedirects(t *testing.T) {
++	var escaped atomic.Int32
++	sink := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		escaped.Add(1)
++		w.WriteHeader(http.StatusNoContent)
++	}))
++	defer sink.Close()
++	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		io.Copy(io.Discard, r.Body)
++		http.Redirect(w, r, sink.URL, http.StatusTemporaryRedirect)
++	}))
++	defer origin.Close()
++	client := NewRuntimeLLMHTTPClient(time.Second)
++	defer client.CloseIdleConnections()
++	response, err := client.Post(origin.URL, "application/json", strings.NewReader(`{"synthetic":true}`))
++	if err != nil {
++		t.Fatal(err)
++	}
++	response.Body.Close()
++	if response.StatusCode != http.StatusTemporaryRedirect || escaped.Load() != 0 {
++		t.Fatalf("status=%d redirected requests=%d; redirect must be returned without forwarding", response.StatusCode, escaped.Load())
++	}
++}
++
++// A fresh process prevents ProxyFromEnvironment's process-wide cache from
++// making this check depend on test order. DialContext maps every dial to
++// loopback and rejects an unexpected address; no external DNS/network is used.
++func TestRuntimeLLMIgnoresAmbientProxy(t *testing.T) {
++	if os.Getenv("CQA_PROXY_REGRESSION_CHILD") != "1" {
++		command := exec.Command(os.Args[0], "-test.run=^TestRuntimeLLMIgnoresAmbientProxy$")
++		command.Env = []string{"CQA_PROXY_REGRESSION_CHILD=1"}
++		if output, err := command.CombinedOutput(); err != nil {
++			t.Fatalf("child: %v\n%s", err, output)
++		}
++		return
++	}
++	var direct, proxied atomic.Int32
++	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		direct.Add(1)
++		w.WriteHeader(http.StatusNoContent)
++	}))
++	defer origin.Close()
++	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		proxied.Add(1)
++		w.WriteHeader(http.StatusNoContent)
++	}))
++	defer proxy.Close()
++	t.Setenv("HTTP_PROXY", proxy.URL)
++	t.Setenv("HTTPS_PROXY", proxy.URL)
++	t.Setenv("NO_PROXY", "")
++	t.Setenv("REQUEST_METHOD", "")
++	client := NewRuntimeLLMHTTPClient(time.Second)
++	defer client.CloseIdleConnections()
++	transport := client.Transport.(*http.Transport)
++	transport.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
++		if address == "cqa-regression.invalid:80" {
++			address = origin.Listener.Addr().String()
++		}
++		if address != origin.Listener.Addr().String() && address != proxy.Listener.Addr().String() {
++			return nil, fmt.Errorf("unexpected dial %q", address)
++		}
++		return (&net.Dialer{}).DialContext(ctx, network, address)
++	}
++	response, err := client.Post("http://cqa-regression.invalid/", "application/json", strings.NewReader(`{}`))
++	if err != nil {
++		t.Fatal(err)
++	}
++	response.Body.Close()
++	if direct.Load() != 1 || proxied.Load() != 0 {
++		t.Fatalf("direct=%d proxy=%d", direct.Load(), proxied.Load())
++	}
++}
++
++func TestRuntimeLLMVerifiesUpstreamTLS(t *testing.T) {
++	var received atomic.Int32
++	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		received.Add(1)
++		w.WriteHeader(http.StatusNoContent)
++	}))
++	defer server.Close()
++	client := NewRuntimeLLMHTTPClient(time.Second)
++	defer client.CloseIdleConnections()
++	response, err := client.Get(server.URL)
++	if response != nil {
++		response.Body.Close()
++	}
++	if err == nil || received.Load() != 0 {
++		t.Fatalf("untrusted certificate accepted: received=%d err=%v", received.Load(), err)
++	}
++}

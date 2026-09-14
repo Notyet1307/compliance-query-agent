@@ -4,7 +4,7 @@ name: compliance-query-demo
 env_file: []
 agents:
   compliance-query:
-    provider: pi
+    provider: codex
     image: compliance-query-agent-guest:dev
     driver:
       docker: {}
