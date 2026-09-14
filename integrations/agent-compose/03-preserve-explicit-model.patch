@@ -1,0 +1,35 @@
+--- a/docs/design/llm_provider_catalog_design.md
++++ b/docs/design/llm_provider_catalog_design.md
+@@ -256,6 +256,8 @@
+ 
+ 普通命令 run 与附着命令 run 都从已选定的不可变项目 revision 重建 startup／selected facade，签发 `source=agent`、绑定原生 `RunID` 的独立令牌。不能用调用方环境、Header 或会话级令牌替代 run 归属；复用 sandbox 时不依赖未持久化的 `RuntimeEnvItems`。
+ 
++OpenCode 的项目 `model: provider/model` 在配置转换时必须保留。兼容的 `OPENCODE_MODEL` 只有非空时才覆盖该字段；未设置或空白值不得清空合法模型引用。该转换由命令、交互与调度路径共同复用。
++
+ 托管 facade 环境优先于命令请求中的同名值。普通命令通过外层 exec 环境继承令牌，并剔除子进程请求中的覆盖值，不把新令牌写入 `command-request.json`。附着命令在顶层及 `Command.Env` 使用同一托管环境。
+ 
+ 准备失败和确认终止后只删除本次签发的 token hashes，不撤销同 sandbox 的其他令牌。附着路径取消后等待 driver 的终止结果；`CloseSend` 或字符串错误帧本身不是终止证明。driver 返回 `ErrExecTerminationUnconfirmed` 时保留本次令牌，不伪称已回收。未配置 LLM 的普通命令仍可执行，已配置但准备失败时不退回会话级凭据。
+--- a/pkg/execution/agent_config.go
++++ b/pkg/execution/agent_config.go
+@@ -20,7 +20,9 @@
+ 	}
+ 	model := strings.TrimSpace(agent.Model)
+ 	if provider == "opencode" {
+-		model = strings.TrimSpace(domain.SandboxEnvMap(agent.EnvItems)["OPENCODE_MODEL"])
++		if override := strings.TrimSpace(domain.SandboxEnvMap(agent.EnvItems)["OPENCODE_MODEL"]); override != "" {
++			model = override
++		}
+ 	}
+ 	return AgentConfig{
+ 		Provider:          provider,
+--- a/pkg/runs/command_facade_test.go
++++ b/pkg/runs/command_facade_test.go
+@@ -38,7 +38,7 @@
+ }
+ 
+ func (s *commandRunFacadeStore) GetProjectRevision(context.Context, string, int64) (domain.ProjectRevisionRecord, error) {
+-	spec := `{"agents":[{"name":"worker","provider":"opencode","env":[{"name":"OPENCODE_MODEL","value":"baizhi/grok-4.6"}]}]}`
++	spec := `{"agents":[{"name":"worker","provider":"opencode","model":"baizhi/grok-4.6"}]}`
+ 	if s.keyless {
+ 		spec = `{"agents":[{"name":"worker","provider":"codex"}]}`
+ 	}

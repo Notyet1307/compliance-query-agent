@@ -1,4 +1,4 @@
-# PROPOSAL ONLY: native guest gateway discovery/transport not implemented in Go yet.
+# X1 CANDIDATE: the native subprocess adapter requires the fixed guest's grpcurl.
 # NOT a live-ready config. Field shapes were checked against upstream docs, not parser.
 name: compliance-query-native-proposal
 env_file: []
@@ -8,7 +8,7 @@ octobus_servers:
     token: ${CQA_OCTOBUS_GATEWAY_TOKEN}
 agents:
   compliance-query:
-    provider: pi
+    provider: codex
     image: compliance-query-agent-guest:dev
     driver:
       docker: {}

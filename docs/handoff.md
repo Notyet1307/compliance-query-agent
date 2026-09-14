@@ -4,9 +4,9 @@
 
 ## 已实现与未实现
 
-README 的能力矩阵描述当前代码；实际验证以 `evidence/bootstrap/verification.json` 为准。代码有真实 CLI/API、本地知识筛选、来源完整性校验、文件回执、可配置 LLM/Connect 客户端，不是空模块。
+README 的能力矩阵描述当前代码；生成环境历史证据见 `evidence/bootstrap/verification.json`，本机接管与后续 X1 分别见 [接管回执](handoff-receipt.md) 和 [X1 执行记录](specs/x1.md)。代码有真实 CLI/API、本地知识筛选、来源完整性校验、文件回执及可配置 LLM/Connect 客户端。
 
-默认样本全部 synthetic，生成是原文提取。真实 LLM、真实 OctoBus 服务、原生 capset 适配、agent-compose parser/镜像/运行、Accord 适配、目标 Go/用户机器/客户环境仍待验证。没有真实合规知识或正确率结论。
+默认样本全部 synthetic，离线生成是原文提取。S1 单文档真实模型结果与当前 S2 受管查询／测试草稿已获用户接受；公开结果和固定候选绑定见 [验收摘要](../evidence/s2-query/accepted-summary.json) 及 [S2 当前范围](specs/s2.md#当前优先级修订先验收真实查询与草稿质量)。跨容器／新 sandbox 重放延期；真实法规、Direct Connect live、Accord、客户环境及生产隔离未验。没有真实合规知识资格或正确率结论。
 
 ## 接管必须先核验
 
@@ -28,7 +28,7 @@ README 的能力矩阵描述当前代码；实际验证以 `evidence/bootstrap/v
 
 - `integrations/accord/role-proposal.json` 是本项目提案，不是 Accord 已有导入格式。
 - `protocol/compliance.proto` 是拟建领域知识服务，不是 OctoBus 自带服务。
-- `deploy/agent-compose.native-octobus.proposal.yml` 用了上游原生配置字段，但本程序尚未实现其 guest 注入协议适配，不能直接视为 live 集成。
+- `deploy/agent-compose.native-octobus.proposal.yml` 仍是部署候选模板；X1 原生 adapter 已实现并用私有固定配置实测，不等于任意环境可直接运行该模板。
 - `configs/live.example.json` 的直接 Connect 客户端与原生代理路线是两种接入路径，不要重复挂载同一能力或误称凭据始终留在 daemon。
 - Go 的目标版本与生成环境实际版本不同，必须重新验证。
 

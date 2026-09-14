@@ -2,7 +2,7 @@ syntax = "proto3";
 package compliance.v1;
 
 // Proposed service contract owned by this project; NOT built into OctoBus.
-// This startup package provides the client, not a service implementation.
+// experiments/x1 prepares a synthetic implementation for the approved integration trial.
 service KnowledgeService {
   rpc Search(SearchRequest) returns (SearchResponse);
 }

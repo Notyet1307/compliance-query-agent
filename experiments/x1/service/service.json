@@ -1,0 +1,8 @@
+{
+  "schema": "chaitin.octobus.service.v1",
+  "name": "compliance-kb",
+  "displayName": "X1 synthetic compliance knowledge",
+  "description": "Synthetic integration trial only; no real compliance materials or external data access.",
+  "runtime": { "mode": "on-demand" },
+  "proto": { "roots": ["proto"], "files": ["proto/compliance.proto"] }
+}

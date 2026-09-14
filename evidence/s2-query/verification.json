@@ -1,0 +1,309 @@
+{
+  "schemaVersion": "cqa.publication-verification/v1",
+  "status": "PASS",
+  "environment": {
+    "host": "darwin/arm64",
+    "go": "go1.27.1 darwin/arm64",
+    "targetGo": "1.27.1",
+    "dependencyPolicy": "GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off; sanitized process environment",
+    "newBusinessModelCalls": 0,
+    "newOctoBusCalls": 0,
+    "newContainerOperations": 0
+  },
+  "sourceBinding": {
+    "baseGitCommit": "d1b53d36fb3092ae7ea63f1c6aba37558fc23ad1",
+    "runtimeSourceManifest": "evidence/s2-query/runtime-source-files.json",
+    "snapshotAtVerificationSHA256": "254d2027da69b0a19af9b936f38e9c73ca4197a28378e5177d3d17984dff347b",
+    "snapshotEncoding": "SHA256(json.dumps(filesSHA256,sort_keys=True,separators=(comma,colon))); runtime manifest overlaid with documentation and additional platform files below. Excludes evidence, generated output and Git metadata.",
+    "documentationOverlaySHA256": {
+      "README.md": "d3a9e376bd5a9e9fb1f048de1df05cf26d6b511e17c11611237528dc53aa97f8",
+      "START_HERE.md": "36acc640f70d7f0787db9c6f253e7fb2c5305496161f9c3a5a7402983f05143b",
+      "docs/decisions-and-assumptions.md": "6ec2b922e17aeb4a42e283d93905e39703a1487e9dcc48bc09f955ee1c431cd9",
+      "docs/development.md": "f10b4d10ecfdf194afefd7fe34a06cb95611894c611c6a6bbdd59d446849d9b5",
+      "docs/handoff.md": "ba12f8d928a9535637f295e38b7c5da6944a5a84c8b0eb9f1254f7deaa7a9575",
+      "docs/issue-seeds/README.md": "1c42937a2f987bce331d444d57708c324bf86b588964ba79545dd2d63ed99aa5",
+      "docs/issue-seeds/S2-01.md": "ce5315eb7238377df8faa38c04e3c31daebeb0f277072ebd465d12f5b0238f04",
+      "docs/issue-seeds/S2-02.md": "8fe924badbadff4c6cc4809e43fd97d8adc81d704bec8d1f3894f72f4905c613",
+      "docs/specs/s2.md": "578bd8aa06808fdb0b40502f9954827323ed8fa6876492bd85c108d3de53c351"
+    },
+    "additionalPlatformFilesSHA256": {
+      "integrations/agent-compose/01-runtime-forwarding-observations.patch": "7041443a550860fc25b4f758106714ad1b561de3a337b2c8afb610d33e548be8",
+      "integrations/agent-compose/02-command-run-attribution.patch": "9ff46896af96e201b6579c3dbe127c035be91b97c5d8f2967e1d41287bd9356f",
+      "integrations/agent-compose/03-preserve-explicit-model.patch": "7a6da1473add0da56e384ba01fb40b65f8cc0118331e9e6ca6b2e02fa55098f3",
+      "integrations/agent-compose/LICENSE.txt": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0",
+      "integrations/agent-compose/candidate.json": "b3c2bdd28f728935c40a6a5862748bf9a2d7eab3c39f75449ac834d8d2cc26c9"
+    },
+    "allCQAExecutableSourceFilesMatchFrozenRuntime": true
+  },
+  "commands": [
+    {
+      "argv": [
+        "make",
+        "verify"
+      ],
+      "environmentOverrides": {},
+      "startedAt": "2026-09-14T08:22:53.330773+00:00",
+      "finishedAt": "2026-09-14T08:23:10.338447+00:00",
+      "exitCode": 0,
+      "stdout": "./scripts/verify.sh\n{\n  \"status\": \"PASS\",\n  \"go_test_roots\": 46,\n  \"go_test_events_including_subtests\": 108,\n  \"smoke\": {\n    \"status\": \"PASS\",\n    \"checks\": [\n      {\n        \"name\": \"cli_mlps\",\n        \"status\": \"PASS\"\n      },\n      {\n        \"name\": \"cli_ciip\",\n        \"status\": \"PASS\"\n      },\n      {\n        \"name\": \"cli_policy\",\n        \"status\": \"PASS\"\n      },\n      {\n        \"name\": \"cli_industry\",\n        \"status\": \"PASS\"\n      },\n      {\n        \"name\": \"cli_crypto\",\n        \"status\": \"PASS\"\n      },\n      {\n        \"name\": \"cli_insufficient\",\n        \"status\": \"PASS\"\n      },\n      {\n        \"name\": \"cli_stale\",\n        \"status\": \"PASS\"\n      },\n      {\n        \"name\": \"cli_conflict\",\n        \"status\": \"PASS\"\n      },\n      {\n        \"name\": \"cli_future\",\n        \"status\": \"PASS\"\n      },\n      {\n        \"name\": \"cli_replay_across_process_restarts\",\n        \"status\": \"PASS\"\n      },\n      {\n        \"name\": \"cli_idempotency_conflict\",\n        \"status\": \"PASS\"\n      },\n      {\n        \"name\": \"cli_invalid_request_id\",\n        \"status\": \"PASS\"\n      },\n      {\n        \"name\": \"http_health_process_only\",\n        \"status\": \"PASS\"\n      },\n      {\n        \"name\": \"http_auth_required\",\n        \"status\": \"PASS\"\n      },\n      {\n        \"name\": \"http_real_query\",\n        \"status\": \"PASS\"\n      },\n      {\n        \"name\": \"http_replay\",\n        \"status\": \"PASS\"\n      },\n      {\n        \"name\": \"http_reject_invalid_media_type\",\n        \"status\": \"PASS\"\n      },\n      {\n        \"name\": \"http_reject_duplicate_json\",\n        \"status\": \"PASS\"\n      },\n      {\n        \"name\": \"http_size_limit\",\n        \"status\": \"PASS\"\n      },\n      {\n        \"name\": \"http_clean_shutdown_no_credential_reflection\",\n        \"status\": \"PASS\"\n      }\n    ],\n    \"check_count\": 20,\n    \"data\": \"synthetic_only\",\n    \"network\": \"literal_loopback_only\",\n    \"live_llm\": \"NOT_RUN\",\n    \"live_octobus\": \"NOT_RUN\",\n    \"agent_compose\": \"NOT_RUN\",\n    \"accord\": \"NOT_RUN\"\n  },\n  \"trial_preparation\": {\n    \"status\": \"PASS\",\n    \"checks\": [\n      \"single_document\",\n      \"same_question_new_identity\",\n      \"network_disabled\",\n      \"private_receipts\",\n      \"existing_trial_preserved\",\n      \"x1_data_unchanged\"\n    ]\n  },\n  \"evidence_directory\": \".local/verification\"\n}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "go",
+        "test",
+        "-race",
+        "-count=1",
+        "./..."
+      ],
+      "environmentOverrides": {},
+      "startedAt": "2026-09-14T08:23:10.338484+00:00",
+      "finishedAt": "2026-09-14T08:23:23.687386+00:00",
+      "exitCode": 0,
+      "stdout": "?   \tcompliance-query-agent/cmd/compliance-agent\t[no test files]\nok  \tcompliance-query-agent/internal/agent\t12.264s\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "go",
+        "build",
+        "-trimpath",
+        "-buildvcs=false",
+        "-o",
+        "bin/compliance-agent-linux-arm64",
+        "./cmd/compliance-agent"
+      ],
+      "environmentOverrides": {
+        "CGO_ENABLED": "0",
+        "GOOS": "linux",
+        "GOARCH": "arm64"
+      },
+      "startedAt": "2026-09-14T08:23:23.687424+00:00",
+      "finishedAt": "2026-09-14T08:23:24.271576+00:00",
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": "",
+      "binarySHA256": "53f79339ae29fff20171568dea8e5e7a5e4fb57f05d43bdf59e5c642a0d60b48",
+      "qualification": "Build passes but intentionally omitted VCS metadata; not byte-identical to the accepted CQA executable."
+    },
+    {
+      "argv": [
+        "go",
+        "build",
+        "-trimpath",
+        "-o",
+        "bin/compliance-agent-linux-arm64",
+        "./cmd/compliance-agent"
+      ],
+      "environmentOverrides": {
+        "CGO_ENABLED": "0",
+        "GOOS": "linux",
+        "GOARCH": "arm64"
+      },
+      "startedAt": "2026-09-14T08:24:56.151816+00:00",
+      "finishedAt": "2026-09-14T08:24:56.418754+00:00",
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": "",
+      "binarySHA256": "a98b6423b7b3602ff2777e52a48747fda4e3d018742a5e4ad2a760850b8a7355",
+      "qualification": "Exact original CQA build flags, original d1b53d3 VCS base plus dirty accepted source overlay."
+    }
+  ],
+  "makeVerifyOutput": {
+    "status": "PASS",
+    "go_test_roots": 46,
+    "go_test_events_including_subtests": 108,
+    "smoke": {
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "cli_mlps",
+          "status": "PASS"
+        },
+        {
+          "name": "cli_ciip",
+          "status": "PASS"
+        },
+        {
+          "name": "cli_policy",
+          "status": "PASS"
+        },
+        {
+          "name": "cli_industry",
+          "status": "PASS"
+        },
+        {
+          "name": "cli_crypto",
+          "status": "PASS"
+        },
+        {
+          "name": "cli_insufficient",
+          "status": "PASS"
+        },
+        {
+          "name": "cli_stale",
+          "status": "PASS"
+        },
+        {
+          "name": "cli_conflict",
+          "status": "PASS"
+        },
+        {
+          "name": "cli_future",
+          "status": "PASS"
+        },
+        {
+          "name": "cli_replay_across_process_restarts",
+          "status": "PASS"
+        },
+        {
+          "name": "cli_idempotency_conflict",
+          "status": "PASS"
+        },
+        {
+          "name": "cli_invalid_request_id",
+          "status": "PASS"
+        },
+        {
+          "name": "http_health_process_only",
+          "status": "PASS"
+        },
+        {
+          "name": "http_auth_required",
+          "status": "PASS"
+        },
+        {
+          "name": "http_real_query",
+          "status": "PASS"
+        },
+        {
+          "name": "http_replay",
+          "status": "PASS"
+        },
+        {
+          "name": "http_reject_invalid_media_type",
+          "status": "PASS"
+        },
+        {
+          "name": "http_reject_duplicate_json",
+          "status": "PASS"
+        },
+        {
+          "name": "http_size_limit",
+          "status": "PASS"
+        },
+        {
+          "name": "http_clean_shutdown_no_credential_reflection",
+          "status": "PASS"
+        }
+      ],
+      "check_count": 20,
+      "data": "synthetic_only",
+      "network": "literal_loopback_only",
+      "live_llm": "NOT_RUN",
+      "live_octobus": "NOT_RUN",
+      "agent_compose": "NOT_RUN",
+      "accord": "NOT_RUN"
+    },
+    "trial_preparation": {
+      "status": "PASS",
+      "checks": [
+        "single_document",
+        "same_question_new_identity",
+        "network_disabled",
+        "private_receipts",
+        "existing_trial_preserved",
+        "x1_data_unchanged"
+      ]
+    },
+    "evidence_directory": ".local/verification"
+  },
+  "acceptedBinaryReproduction": {
+    "status": "PASS_BYTE_IDENTICAL",
+    "sha256": "a98b6423b7b3602ff2777e52a48747fda4e3d018742a5e4ad2a760850b8a7355",
+    "scope": "Original accepted Go build flags on original d1b53d3 VCS base plus dirty candidate overlay. This is not a promise that a future checkout with different VCS metadata yields the same executable.",
+    "diagnostic": "An initial -buildvcs=false build succeeded but differed because it omitted the accepted VCS metadata; rebuilding with the actual frozen command reproduced the accepted bytes.",
+    "futureReplayBoundary": "Receipts bind actual executable digest; new builds are not automatically authorized or interchangeable."
+  },
+  "platformPatchCheck": {
+    "status": "PATCH_CHAIN_PASS_GENERATED_INPUTS_NOT_REGENERATED",
+    "upstreamCommit": "043b763f05304c3a55f1bd3f4eb8504a591aa4ba",
+    "upstreamArchiveSHA256": "bd70798481008df3354103f7f7693364bfd6bf2cee09efd66710d911b4df8eb6",
+    "sourceFilesMatched": 1395,
+    "regenerationRequiredFiles": [
+      "proto/agentcompose/v2/agentcompose.pb.go",
+      "proto/health/v1/health.pb.go"
+    ],
+    "expectedGeneratedInputs": {
+      "proto/agentcompose/v2/agentcompose.pb.go": "dd4a1739528faf2a18c5bead2982a2b6014ad98a1e1d9c44c121dc9bb1071bd6",
+      "proto/agentcompose/v2/agentcomposev2connect/agentcompose.connect.go": "b1c4a186285060f63af0b5df0e7c4fc464a20b9271ef3df3d4cb0aa1e5ed9306",
+      "proto/health/v1/health.pb.go": "f65cd57573119cea8cdec48df2f060f4d4986a5608cc4e01b719411e875dffb4",
+      "proto/health/v1/healthv1connect/health.connect.go": "545349c00b73acf15fffa7d6c2f4fb25efe4642318dc783f377aa4af2be78a5b"
+    },
+    "candidateSourceSnapshotSHA256": "3c39b4a91a52e03ebf037b32be9be4ae7abfaf7adeda22e8894a4628165f831a"
+  },
+  "publicExportCheck": {
+    "status": "PASS_SCOPED",
+    "changedFilesChecked": 50,
+    "explicitAllowlist": [
+      "CONTEXT.md",
+      "README.md",
+      "START_HERE.md",
+      "agent-compose.yml",
+      "configs/guest-native-x1.json",
+      "configs/s2-managed-test.json",
+      "configs/s2-native-test.json",
+      "deploy/Dockerfile.guest",
+      "deploy/agent-compose.native-octobus.proposal.yml",
+      "docs/agents/issue-tracker.md",
+      "docs/architecture.md",
+      "docs/decisions-and-assumptions.md",
+      "docs/development.md",
+      "docs/handoff.md",
+      "docs/issue-seeds/README.md",
+      "docs/issue-seeds/S2-01.md",
+      "docs/issue-seeds/S2-02.md",
+      "docs/issue-seeds/S2.md",
+      "docs/issue-seeds/X1.md",
+      "docs/research/x1-upstream-facts.md",
+      "docs/security.md",
+      "docs/specs/s2.md",
+      "docs/specs/x1.md",
+      "evidence/s2-query/accepted-summary.json",
+      "evidence/s2-query/draft.json",
+      "evidence/s2-query/runtime-source-files.json",
+      "evidence/s2-query/verification.json",
+      "experiments/x1/prepare.py",
+      "experiments/x1/prepare_test.py",
+      "experiments/x1/service/bin/compliance-kb.js",
+      "experiments/x1/service/package-lock.json",
+      "experiments/x1/service/package.json",
+      "experiments/x1/service/service.json",
+      "experiments/x1/stop_run.py",
+      "integrations/agent-compose/01-runtime-forwarding-observations.patch",
+      "integrations/agent-compose/02-command-run-attribution.patch",
+      "integrations/agent-compose/03-preserve-explicit-model.patch",
+      "integrations/agent-compose/LICENSE.txt",
+      "integrations/agent-compose/candidate.json",
+      "integrations/octobus/README.md",
+      "internal/agent/clients.go",
+      "internal/agent/config.go",
+      "internal/agent/engine.go",
+      "internal/agent/managed.go",
+      "internal/agent/native.go",
+      "internal/agent/native_test.go",
+      "internal/agent/s2_test.go",
+      "internal/agent/store.go",
+      "protocol/compliance.proto",
+      "scripts/verify.sh"
+    ],
+    "checks": [
+      "No private key PEM headers, GitHub token shapes, long sk-token shapes or /Users/ literals found in the selected changed files.",
+      "Only accepted frozen CQA files plus explicit safe evidence/platform-patch exports are staged.",
+      "Synthetic draft quote is already present in the tracked synthetic test source; no customer question/answer is exported.",
+      "Upstream license text preserved for separate patch files; no root project license added."
+    ],
+    "notClaimed": "Generic DLP, secret-store access, or independent security qualification."
+  },
+  "ci": "No GitHub workflow files in this repository; these are local target-toolchain checks, not hosted CI or trusted qualification."
+}

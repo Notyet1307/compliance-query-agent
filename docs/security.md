@@ -1,10 +1,10 @@
 # 安全边界与部署限制
 
-当前只批准了生成启动包和本地合成检查。默认不联网，不读取真实客户数据，不公开服务，不将真实资料传到模型。
+用户已批准并完成本地合成检查与一次 X1 原生接缝试验，边界及证据见 [X1](specs/x1.md)。默认仍不联网，不读取真实客户数据，不公开服务，不将真实资料传到模型；本次授权不延伸到生产或追加运行。
 
 ## 已落在代码中的控制
 
-严格且有界的 JSON/字段；固定主题/地域；来源 hash、版本区间、核验日期与人工审核标志；端点由配置固定；禁止重定向和 ambient proxy；HTTPS（测试仅 loopback HTTP）；token 仅经环境引用；不回显原始 provider 错误；精确 token 反射阻断；LLM 不获得工具；不接受模型生成的来源地址；同请求预留/完成重放/未知不重试；loopback API + token。
+严格且有界的 JSON/字段；固定主题/地域；来源 hash、版本区间、核验日期与人工审核标志；端点由配置固定；禁止重定向和 ambient proxy；HTTP 客户端要求 HTTPS（测试仅 loopback HTTP）；token 仅经环境引用；不回显原始 provider 错误；精确 token 反射阻断；LLM 不获得工具；不接受模型生成的来源地址；同请求预留/完成重放/未知不重试；loopback API + token。X1 原生 gRPC 例外仅在已批准的专用 internal 网络使用 plaintext，不把它作为生产传输方案。
 
 这些控制不等于完整系统隔离或 DLP。单一布尔 `networkApproved` 只是操作员配置开关，不是企业审批系统；请求中的行业和 Case ID 也不是身份认证。正式身份与授权要由 Accord 和部署边界实现。
 
@@ -16,13 +16,15 @@
 
 直接 Connect 客户端用于明确端点和协议验证；部署令牌必须只允许指定只读数据路径，不能给 Agent 管理 API 权限。OctoBus capset 的选择本身不能代替外层远程网络认证；对应认证责任需按所选版本/部署验证。
 
-推荐最终使用 agent-compose 原生 `octobus_servers + capset_ids` 路由，让上游 OctoBus 令牌留在 daemon。当前原生自动注入路径尚未实现客户端适配，不能宣称直接 Connect 配置已自动获得它的安全属性。
+X1 已实现并实测 `octobus_servers + capset_ids` 原生路径；固定 grpcurl 使用 sandbox-scoped CAP_TOKEN，上游 token 留在 daemon，不回退 Direct。daemon 的 Docker socket 与隔离 OctoBus 管理级测试 token 是 ADR-X1-01/执行包明确接受的风险，不是“只读管理权限”、静态加密或生产最小权限。Direct Connect 不自动获得该路径的安全属性。
 
 ## 命令和输出通道
 
 `run --command` 最终执行 shell。示例脚本只运行常量命令和固定样例文件，不插入用户自然语言或任意路径。未来 Accord 适配器必须使用受限 request artifact/参数通道，校验归属、路径和输入摘要。
 
 agent-compose 会保留命令输出到运行日志；真实查询和来源片段因此可能进入运行记录。上线前必须确认日志可见性、保留/删除和数据分级，不能因为 token 已隐藏就允许传输客户敏感数据。
+
+X1 平台 artifacts 实际为 0644，受宿主私有 0700 父目录限制；guest 可以写自己的 state/logs。精确反射扫描通过不赋予这些文件防篡改属性，也不证明它们可直接成为 Accord 的 trusted evidence。
 
 不要把宿主根目录、Docker socket、HOME 或包含凭据的完整仓库挂进 guest。镜像须保留 agent-compose guest ABI，并固定经核验的镜像 digest。
 
